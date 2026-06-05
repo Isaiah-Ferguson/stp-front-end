@@ -2,79 +2,115 @@ import Link from "next/link";
 
 /**
  * Dashboard page — the main entry point after login.
- * Add CRM feature cards/sections here as the project grows.
+ * Establishes the base app shell (sidebar + topbar) from the
+ * Shining Stars design system. Add CRM features as the project grows.
  */
 export default function DashboardPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Top Nav */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-sm font-bold">
-            S
-          </div>
-          <span className="text-lg font-semibold text-gray-900">ShinyStar CRM</span>
+    <div className="min-h-screen flex bg-bg">
+      {/* Sidebar */}
+      <aside className="ss-sidebar">
+        <div className="flex items-center gap-2 px-3">
+          <span className="ss-avatar sm admin" aria-hidden="true">
+            SS
+          </span>
+          <span style={{ fontWeight: "var(--w-medium)" }}>Shining Stars</span>
         </div>
-        <nav className="flex items-center gap-4 text-sm font-medium text-gray-600">
-          <Link href="/" className="hover:text-indigo-600 transition-colors">
-            Home
+
+        <nav className="ss-nav-section">
+          <span className="ss-nav-section-label">Workspace</span>
+          <Link href="/dashboard" className="ss-nav-item is-active">
+            <span className="ss-nav-label">Dashboard</span>
           </Link>
-          <a
-            href="http://localhost:5000/swagger"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-indigo-600 transition-colors"
-          >
-            API Docs
+          <a className="ss-nav-item">
+            <span className="ss-nav-label">Participants</span>
+          </a>
+          <a className="ss-nav-item">
+            <span className="ss-nav-label">Attendance</span>
+          </a>
+          <a className="ss-nav-item">
+            <span className="ss-nav-label">Calendar</span>
           </a>
         </nav>
-      </header>
 
-      {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-6 py-10 space-y-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="mt-1 text-gray-500">
-            Welcome to ShinyStar CRM. Your workspace is ready.
-          </p>
-        </div>
+        <nav className="ss-nav-section">
+          <span className="ss-nav-section-label">Admin</span>
+          <a className="ss-nav-item">
+            <span className="ss-nav-label">Staff</span>
+          </a>
+          <a className="ss-nav-item">
+            <span className="ss-nav-label">Settings</span>
+          </a>
+        </nav>
+      </aside>
 
-        {/* Placeholder Stat Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[
-            { label: "Total Contacts", value: "—", color: "bg-indigo-50 text-indigo-700" },
-            { label: "Active Deals", value: "—", color: "bg-emerald-50 text-emerald-700" },
-            { label: "Open Tasks", value: "—", color: "bg-amber-50 text-amber-700" },
-            { label: "This Month Revenue", value: "—", color: "bg-sky-50 text-sky-700" },
-          ].map((stat) => (
-            <div
-              key={stat.label}
-              className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-2"
-            >
-              <p className="text-sm font-medium text-gray-500">{stat.label}</p>
-              <p className={`text-3xl font-bold ${stat.color} inline-block px-2 py-0.5 rounded-md`}>
-                {stat.value}
-              </p>
+      {/* Main column */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="ss-topbar">
+          <div className="ss-topbar-titles">
+            <div className="ss-breadcrumb">
+              <Link href="/">Home</Link>
+              <span className="sep">/</span>
+              <span>Dashboard</span>
             </div>
-          ))}
-        </div>
+            <h1>Dashboard</h1>
+          </div>
+          <div className="ss-topbar-actions">
+            <a
+              href="http://localhost:5000/swagger"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ss-btn"
+            >
+              API docs
+            </a>
+            <button type="button" className="ss-btn ss-btn-primary">
+              Add participant
+            </button>
+          </div>
+        </header>
 
-        {/* Placeholder Sections */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-            <h2 className="text-base font-semibold text-gray-800 mb-4">Recent Contacts</h2>
-            <p className="text-sm text-gray-400 italic">
-              No contacts yet. Add domain entities and API endpoints to populate this section.
-            </p>
+        <main
+          className="flex-1 flex flex-col"
+          style={{ padding: "var(--space-6) var(--page-pad-x)", gap: "var(--section-gap)" }}
+        >
+          {/* Stat grid */}
+          <div className="ss-statgrid">
+            {[
+              { label: "Participants", value: "—" },
+              { label: "Active", value: "—" },
+              { label: "Attendance %", value: "—" },
+              { label: "Enrolled", value: "—" },
+            ].map((stat) => (
+              <div key={stat.label} className="ss-stat">
+                <span className="ss-stat-num">{stat.value}</span>
+                <span className="ss-stat-label">{stat.label}</span>
+              </div>
+            ))}
           </div>
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-            <h2 className="text-base font-semibold text-gray-800 mb-4">Recent Activity</h2>
-            <p className="text-sm text-gray-400 italic">
-              Activity feed will appear here once features are built.
-            </p>
+
+          {/* Two-column placeholder cards */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <section className="ss-card">
+              <div className="ss-card-header">
+                <h2>Recent participants</h2>
+              </div>
+              <p className="ss-meta">
+                No participants yet. Add domain entities and API endpoints to
+                populate this section.
+              </p>
+            </section>
+            <section className="ss-card">
+              <div className="ss-card-header">
+                <h2>Recent activity</h2>
+              </div>
+              <p className="ss-meta">
+                Activity feed will appear here once features are built.
+              </p>
+            </section>
           </div>
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

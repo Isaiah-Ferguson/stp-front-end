@@ -1,0 +1,154 @@
+/* ============================================================
+   Shining Stars CRM — Design Tokens
+   Source of truth: design_handoff_shining_stars_crm/tokens/*
+   Flat design. Depth via border intensity + background variation.
+   NO shadows, NO gradients, NO blur.
+   ============================================================ */
+
+:root {
+  /* ============================================================
+     COLOR — Warm neutral surfaces
+     ============================================================ */
+  --bg: #fbfaf6; /* page background, warm paper       */
+  --bg-secondary: #f1efe8; /* sidebar / secondary panels        */
+  --bg-tertiary: #e9e7de; /* subtle inset / hover wells        */
+  --surface: #ffffff; /* cards, primary surfaces           */
+
+  /* ---- Ink ------------------------------------------------- */
+  --fg: #2b2a26; /* primary text, warm near-black     */
+  --fg-secondary: #6b6960; /* meta, labels, secondary text      */
+  --fg-tertiary: #98968b; /* placeholder, disabled, faint      */
+  --fg-on-color: #ffffff; /* text on saturated fills           */
+
+  /* ---- Borders (0.5px hairlines) --------------------------- */
+  --border: rgba(43, 42, 38, 0.1); /* default hairline   */
+  --border-hover: rgba(43, 42, 38, 0.2); /* hover / focus      */
+  --border-strong: rgba(43, 42, 38, 0.28); /* emphasized divider */
+
+  /* ============================================================
+     PROGRAM COLORS — base / fill / text / border
+     ============================================================ */
+  --mjc: #378add;
+  --mjc-fill: #e6f1fb;
+  --mjc-text: #0c447c;
+  --mjc-border: #85b7eb;
+
+  --pathways: #1d9e75;
+  --pathways-fill: #e1f5ee;
+  --pathways-text: #085041;
+  --pathways-border: #5dcaa5;
+
+  --manteca: #d85a30;
+  --manteca-fill: #faece7;
+  --manteca-text: #712b13;
+  --manteca-border: #f0997b;
+
+  --productions: #ef9f27;
+  --productions-fill: #faeeda;
+  --productions-text: #633806;
+  --productions-border: #ef9f27;
+
+  --staff: #888780;
+  --staff-fill: #f1efe8;
+  --staff-text: #444441;
+  --staff-border: #c9c7be;
+
+  /* ============================================================
+     SEMANTIC / STATUS COLORS
+     ============================================================ */
+  --success: #2e9e5b;
+  --success-fill: #e4f4ea;
+  --success-text: #1a5e37;
+  --success-border: #8ccba4;
+
+  --warning: #ef9f27;
+  --warning-fill: #faeeda;
+  --warning-text: #633806;
+  --warning-border: #f0c57d;
+
+  --danger: #d0473d;
+  --danger-fill: #fbe9e7;
+  --danger-text: #7e251e;
+  --danger-border: #e89b95;
+
+  --info: #378add;
+  --info-fill: #e6f1fb;
+  --info-text: #0c447c;
+  --info-border: #85b7eb;
+
+  --neutral: #888780;
+  --neutral-fill: #f1efe8;
+  --neutral-text: #444441;
+  --neutral-border: #c9c7be;
+
+  /* ---- Primary action color (maps to brand blue) ----------- */
+  --primary: #378add;
+  --primary-hover: #2c76c2;
+  --primary-fill: #e6f1fb;
+  --primary-text: #0c447c;
+
+  /* ---- Avatar / role colors -------------------------------- */
+  --role-admin: #378add;
+  --role-teacher: #1d9e75;
+  --role-coordinator: #ef9f27;
+
+  /* ---- Note type accents ----------------------------------- */
+  --note-highlight: #2e9e5b;
+  --note-progress: #378add;
+  --note-concern: #d0473d;
+  --note-observation: #888780;
+
+  /* ============================================================
+     TYPOGRAPHY
+     System sans-serif. No weights above 500. Calm + dense.
+     ============================================================ */
+  --font-sans: "Anthropic Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    system-ui, "Helvetica Neue", Arial, sans-serif;
+
+  --w-regular: 400;
+  --w-medium: 500;
+
+  --fs-h1: 22px; /* page title         */
+  --fs-h2: 18px; /* section header     */
+  --fs-h3: 15px; /* card / subsection  */
+  --fs-stat: 20px; /* stat-cell number   */
+  --fs-body: 13px; /* default body       */
+  --fs-meta: 12px; /* secondary / meta   */
+  --fs-label: 11px; /* uppercase labels   */
+
+  --lh-heading: 1.3;
+  --lh-body: 1.7;
+  --lh-tight: 1.2;
+
+  --ls-label: 0.06em; /* uppercase eyebrow labels */
+  --ls-normal: 0;
+
+  /* ============================================================
+     SPACING, RADII & LAYOUT
+     ============================================================ */
+  --space-1: 4px;
+  --space-2: 8px; /* component internal gap (min) */
+  --space-3: 12px; /* component internal gap (max) */
+  --space-4: 16px; /* card padding                 */
+  --space-5: 20px; /* page horizontal padding      */
+  --space-6: 24px; /* section gap                  */
+  --space-7: 32px;
+  --space-8: 48px;
+
+  --page-pad-x: 20px;
+  --section-gap: 24px;
+  --sidebar-w: 200px;
+
+  --r-sm: 4px; /* status badges, attendance btns */
+  --r-md: 8px; /* inputs, small controls         */
+  --r-lg: 12px; /* cards                          */
+  --r-pill: 20px; /* filter chips                   */
+  --r-circle: 50%; /* avatars, dots                  */
+
+  --bw: 0.5px; /* hairline border width          */
+
+  --bar-h: 6px; /* progress bar height            */
+  --switch-w: 32px;
+  --switch-h: 18px;
+  --switch-thumb: 14px;
+}

@@ -1,26 +1,136 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Shining Stars CRM — design system (tokens first, then components) */
+@import "./styles/tokens.css";
+@import "./styles/components.css";
 
+/* ------------------------------------------------------------
+   Bridge design tokens -> Tailwind v4 utilities.
+   `inline` keeps references to the CSS variables defined in
+   styles/tokens.css, so utilities stay in sync with the tokens.
+   Examples: bg-surface, bg-bg, text-fg, border-border,
+   rounded-card, text-h1, font-sans, etc.
+   ------------------------------------------------------------ */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Surfaces */
+  --color-bg: var(--bg);
+  --color-bg-secondary: var(--bg-secondary);
+  --color-bg-tertiary: var(--bg-tertiary);
+  --color-surface: var(--surface);
+
+  /* Ink */
+  --color-fg: var(--fg);
+  --color-fg-secondary: var(--fg-secondary);
+  --color-fg-tertiary: var(--fg-tertiary);
+  --color-fg-on-color: var(--fg-on-color);
+
+  /* Borders (as colors) */
+  --color-border: var(--border);
+  --color-border-hover: var(--border-hover);
+  --color-border-strong: var(--border-strong);
+
+  /* Program colors */
+  --color-mjc: var(--mjc);
+  --color-mjc-fill: var(--mjc-fill);
+  --color-mjc-text: var(--mjc-text);
+  --color-mjc-border: var(--mjc-border);
+  --color-pathways: var(--pathways);
+  --color-pathways-fill: var(--pathways-fill);
+  --color-pathways-text: var(--pathways-text);
+  --color-pathways-border: var(--pathways-border);
+  --color-manteca: var(--manteca);
+  --color-manteca-fill: var(--manteca-fill);
+  --color-manteca-text: var(--manteca-text);
+  --color-manteca-border: var(--manteca-border);
+  --color-productions: var(--productions);
+  --color-productions-fill: var(--productions-fill);
+  --color-productions-text: var(--productions-text);
+  --color-productions-border: var(--productions-border);
+  --color-staff: var(--staff);
+  --color-staff-fill: var(--staff-fill);
+  --color-staff-text: var(--staff-text);
+  --color-staff-border: var(--staff-border);
+
+  /* Semantic colors */
+  --color-success: var(--success);
+  --color-success-fill: var(--success-fill);
+  --color-success-text: var(--success-text);
+  --color-success-border: var(--success-border);
+  --color-warning: var(--warning);
+  --color-warning-fill: var(--warning-fill);
+  --color-warning-text: var(--warning-text);
+  --color-warning-border: var(--warning-border);
+  --color-danger: var(--danger);
+  --color-danger-fill: var(--danger-fill);
+  --color-danger-text: var(--danger-text);
+  --color-danger-border: var(--danger-border);
+  --color-info: var(--info);
+  --color-info-fill: var(--info-fill);
+  --color-info-text: var(--info-text);
+  --color-info-border: var(--info-border);
+  --color-neutral: var(--neutral);
+  --color-neutral-fill: var(--neutral-fill);
+  --color-neutral-text: var(--neutral-text);
+  --color-neutral-border: var(--neutral-border);
+
+  /* Primary action */
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-fill: var(--primary-fill);
+  --color-primary-text: var(--primary-text);
+
+  /* Typography */
+  --font-sans: var(--font-sans);
+  --text-label: var(--fs-label);
+  --text-meta: var(--fs-meta);
+  --text-body: var(--fs-body);
+  --text-stat: var(--fs-stat);
+  --text-h3: var(--fs-h3);
+  --text-h2: var(--fs-h2);
+  --text-h1: var(--fs-h1);
+
+  /* Spacing scale */
+  --spacing-1: var(--space-1);
+  --spacing-2: var(--space-2);
+  --spacing-3: var(--space-3);
+  --spacing-4: var(--space-4);
+  --spacing-5: var(--space-5);
+  --spacing-6: var(--space-6);
+  --spacing-7: var(--space-7);
+  --spacing-8: var(--space-8);
+
+  /* Radii */
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+  --radius-pill: var(--r-pill);
+  --radius-card: var(--r-lg);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ------------------------------------------------------------
+   Base type — warm paper surface, calm + dense (light only).
+   ------------------------------------------------------------ */
+html {
+  background: var(--bg);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  font-weight: var(--w-regular);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
+
+h1, h2, h3 {
+  font-weight: var(--w-medium);
+  line-height: var(--lh-heading);
+  margin: 0;
+  color: var(--fg);
+}
+h1 { font-size: var(--fs-h1); }
+h2 { font-size: var(--fs-h2); }
+h3 { font-size: var(--fs-h3); }

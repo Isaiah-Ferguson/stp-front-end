@@ -1,0 +1,491 @@
+/* ============================================================
+   Shining Stars CRM — Component Patterns
+   Source of truth: design_handoff_shining_stars_crm/components.css
+   Flat surfaces. Hairline borders. Warm + accessible.
+   All components built on tokens from tokens.css
+   ============================================================ */
+
+/* ============================================================
+   1. NAVIGATION SIDEBAR
+   ============================================================ */
+.ss-sidebar {
+  width: var(--sidebar-w);
+  flex: 0 0 var(--sidebar-w);
+  background: var(--bg-secondary);
+  border-right: var(--bw) solid var(--border);
+  padding: var(--space-4) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.ss-nav-section { display: flex; flex-direction: column; gap: 2px; }
+.ss-nav-section-label {
+  font-size: var(--fs-label);
+  font-weight: var(--w-medium);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--fg-tertiary);
+  padding: 0 var(--space-3) var(--space-2);
+}
+.ss-nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--r-md);
+  font-size: var(--fs-body);
+  color: var(--fg-secondary);
+  text-decoration: none;
+  cursor: pointer;
+  min-height: 34px;
+  box-sizing: border-box;
+}
+.ss-nav-item:hover { background: var(--bg-tertiary); color: var(--fg); }
+.ss-nav-item.is-active {
+  background: var(--primary);
+  color: var(--fg-on-color);
+}
+.ss-nav-item.is-active .ss-nav-icon { color: var(--fg-on-color); }
+.ss-nav-icon { width: 16px; height: 16px; flex: 0 0 16px; color: var(--fg-tertiary); }
+.ss-nav-item .ss-nav-label { flex: 1; }
+.ss-nav-badge {
+  font-size: var(--fs-label);
+  font-weight: var(--w-medium);
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-on-color);
+}
+.ss-nav-badge.is-danger { background: var(--danger); }
+.ss-nav-badge.is-warning { background: var(--warning); color: var(--warning-text); }
+
+/* ============================================================
+   2. TOPBAR
+   ============================================================ */
+.ss-topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: var(--space-4) var(--page-pad-x);
+  border-bottom: var(--bw) solid var(--border);
+  background: var(--surface);
+}
+.ss-topbar-titles { display: flex; flex-direction: column; gap: 3px; }
+.ss-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-meta);
+  color: var(--fg-secondary);
+}
+.ss-breadcrumb a { color: var(--fg-secondary); text-decoration: none; }
+.ss-breadcrumb a:hover { color: var(--fg); }
+.ss-breadcrumb .sep { color: var(--fg-tertiary); }
+.ss-topbar-actions { display: flex; align-items: center; gap: var(--space-2); }
+
+/* ---- Buttons (used in topbar + elsewhere) ----------------- */
+.ss-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  font-weight: var(--w-medium);
+  padding: var(--space-2) var(--space-4);
+  min-height: 34px;
+  border-radius: var(--r-md);
+  border: var(--bw) solid var(--border);
+  background: var(--surface);
+  color: var(--fg);
+  cursor: pointer;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+.ss-btn:hover { border-color: var(--border-hover); background: var(--bg); }
+.ss-btn-primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--fg-on-color);
+}
+.ss-btn-primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+.ss-btn-icon { width: 15px; height: 15px; }
+
+/* ============================================================
+   3. STAT CELLS
+   ============================================================ */
+.ss-statgrid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  background: var(--surface);
+  border: var(--bw) solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+.ss-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border-right: var(--bw) solid var(--border);
+}
+.ss-stat:last-child { border-right: none; }
+.ss-stat-num {
+  font-size: var(--fs-stat);
+  font-weight: var(--w-medium);
+  color: var(--fg);
+  line-height: var(--lh-tight);
+}
+.ss-stat-label {
+  font-size: var(--fs-label);
+  font-weight: var(--w-medium);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--fg-secondary);
+}
+
+/* ============================================================
+   4. FILTER CHIPS
+   ============================================================ */
+.ss-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-meta);
+  font-weight: var(--w-medium);
+  padding: 5px var(--space-3);
+  min-height: 28px;
+  border-radius: var(--r-pill);
+  border: var(--bw) solid var(--border);
+  background: var(--surface);
+  color: var(--fg-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+.ss-chip:hover { border-color: var(--border-hover); }
+.ss-chip .ss-dot { width: 8px; height: 8px; border-radius: 50%; }
+/* active program chips */
+.ss-chip.is-active.mjc { background: var(--mjc-fill); color: var(--mjc-text); border-color: var(--mjc-border); }
+.ss-chip.is-active.pathways { background: var(--pathways-fill); color: var(--pathways-text); border-color: var(--pathways-border); }
+.ss-chip.is-active.manteca { background: var(--manteca-fill); color: var(--manteca-text); border-color: var(--manteca-border); }
+.ss-chip.is-active.productions { background: var(--productions-fill); color: var(--productions-text); border-color: var(--productions-border); }
+.ss-chip.is-active.staff { background: var(--staff-fill); color: var(--staff-text); border-color: var(--staff-border); }
+
+/* ---- Program dots (reusable) ------------------------------ */
+.ss-dot.mjc { background: var(--mjc); }
+.ss-dot.pathways { background: var(--pathways); }
+.ss-dot.manteca { background: var(--manteca); }
+.ss-dot.productions { background: var(--productions); }
+.ss-dot.staff { background: var(--staff); }
+
+/* ---- Program badges (label + dot) ------------------------- */
+.ss-program {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-meta);
+  font-weight: var(--w-medium);
+  padding: 3px 10px;
+  border-radius: var(--r-sm);
+}
+.ss-program.mjc { background: var(--mjc-fill); color: var(--mjc-text); }
+.ss-program.pathways { background: var(--pathways-fill); color: var(--pathways-text); }
+.ss-program.manteca { background: var(--manteca-fill); color: var(--manteca-text); }
+.ss-program.productions { background: var(--productions-fill); color: var(--productions-text); }
+.ss-program.staff { background: var(--staff-fill); color: var(--staff-text); }
+
+/* ============================================================
+   5. STATUS BADGES
+   ============================================================ */
+.ss-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-meta);
+  font-weight: var(--w-medium);
+  padding: 3px 9px;
+  border-radius: var(--r-sm);
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.ss-badge svg { width: 12px; height: 12px; }
+.ss-badge.is-active { background: var(--success-fill); color: var(--success-text); }
+.ss-badge.is-prospective { background: var(--warning-fill); color: var(--warning-text); }
+.ss-badge.is-former { background: var(--neutral-fill); color: var(--neutral-text); }
+.ss-badge.is-attention { background: var(--danger-fill); color: var(--danger-text); }
+
+/* ============================================================
+   6. ATTENDANCE STATUS BUTTONS
+   ============================================================ */
+.ss-attendance { display: inline-flex; gap: var(--space-2); }
+.ss-att-btn {
+  width: 38px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-sm);
+  border: var(--bw) solid var(--border);
+  background: var(--surface);
+  color: var(--fg-tertiary);
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.ss-att-btn svg { width: 16px; height: 16px; }
+.ss-att-btn:hover { border-color: var(--border-hover); color: var(--fg-secondary); }
+/* selected fills with color */
+.ss-att-btn.is-selected.present { background: var(--success); border-color: var(--success); color: var(--fg-on-color); }
+.ss-att-btn.is-selected.absent { background: var(--danger); border-color: var(--danger); color: var(--fg-on-color); }
+.ss-att-btn.is-selected.late { background: var(--warning); border-color: var(--warning); color: var(--warning-text); }
+.ss-att-btn.is-selected.excused { background: var(--neutral); border-color: var(--neutral); color: var(--fg-on-color); }
+
+/* ============================================================
+   7. PROGRESS BARS
+   ============================================================ */
+.ss-progress {
+  width: 100%;
+  height: var(--bar-h);
+  border-radius: 999px;
+  background: var(--bg-tertiary);
+  overflow: hidden;
+}
+.ss-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--primary);
+}
+.ss-progress-fill.mjc { background: var(--mjc); }
+.ss-progress-fill.pathways { background: var(--pathways); }
+.ss-progress-fill.manteca { background: var(--manteca); }
+.ss-progress-fill.productions { background: var(--productions); }
+.ss-progress-fill.success { background: var(--success); }
+.ss-progress-fill.warning { background: var(--warning); }
+.ss-progress-fill.danger { background: var(--danger); }
+
+/* ============================================================
+   8. ALERT BANNERS
+   ============================================================ */
+.ss-alert {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--r-md);
+  box-sizing: border-box;
+}
+.ss-alert svg { width: 18px; height: 18px; flex: 0 0 18px; }
+.ss-alert-text { flex: 1; font-size: var(--fs-body); }
+.ss-alert-text strong { font-weight: var(--w-medium); }
+.ss-alert-action {
+  font-size: var(--fs-body);
+  font-weight: var(--w-medium);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.ss-alert.is-danger { background: var(--danger-fill); color: var(--danger-text); }
+.ss-alert.is-danger svg, .ss-alert.is-danger .ss-alert-action { color: var(--danger); }
+.ss-alert.is-warning { background: var(--warning-fill); color: var(--warning-text); }
+.ss-alert.is-warning svg, .ss-alert.is-warning .ss-alert-action { color: #9a6a12; }
+.ss-alert.is-info { background: var(--info-fill); color: var(--info-text); }
+.ss-alert.is-info svg, .ss-alert.is-info .ss-alert-action { color: var(--info); }
+/* allergy flag — always red, never dismissible */
+.ss-alert.is-allergy { background: var(--danger-fill); color: var(--danger-text); }
+.ss-alert.is-allergy svg { color: var(--danger); }
+
+/* ============================================================
+   9. CARDS
+   ============================================================ */
+.ss-card {
+  background: var(--surface);
+  border: var(--bw) solid var(--border);
+  border-radius: var(--r-lg);
+  padding: var(--space-4);
+}
+.ss-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+/* ============================================================
+   10. AVATARS / INITIALS
+   ============================================================ */
+.ss-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-circle);
+  font-size: var(--fs-meta);
+  font-weight: var(--w-medium);
+  color: var(--fg-on-color);
+  flex: 0 0 auto;
+}
+.ss-avatar.sm { width: 24px; height: 24px; font-size: var(--fs-label); }
+.ss-avatar.lg { width: 44px; height: 44px; font-size: var(--fs-h3); }
+.ss-avatar.admin { background: var(--role-admin); }
+.ss-avatar.teacher { background: var(--role-teacher); }
+.ss-avatar.coordinator { background: var(--role-coordinator); color: var(--warning-text); }
+
+/* ============================================================
+   11. CHECKLIST ROWS
+   ============================================================ */
+.ss-checkrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: var(--bw) solid var(--border);
+}
+.ss-checkrow:last-child { border-bottom: none; }
+.ss-checkbox {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  border-radius: var(--r-sm);
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.ss-checkbox svg { width: 12px; height: 12px; color: var(--fg-on-color); opacity: 0; }
+.ss-checkbox.is-checked { background: var(--success); border-color: var(--success); }
+.ss-checkbox.is-checked svg { opacity: 1; }
+.ss-checkrow-label { flex: 1; font-size: var(--fs-body); }
+.ss-checkrow.is-done .ss-checkrow-label { color: var(--fg-secondary); }
+.ss-checkrow-date { font-size: var(--fs-meta); color: var(--fg-secondary); }
+.ss-upload {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-meta);
+  font-weight: var(--w-medium);
+  color: var(--primary);
+  padding: 4px 10px;
+  border-radius: var(--r-md);
+  border: var(--bw) solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+}
+.ss-upload:hover { border-color: var(--border-hover); }
+.ss-upload svg { width: 13px; height: 13px; }
+
+/* ============================================================
+   12. TIMELINE MILESTONE DOTS
+   ============================================================ */
+.ss-timeline { display: flex; align-items: flex-start; gap: 0; }
+.ss-milestone { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); flex: 1; position: relative; }
+.ss-milestone-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  background: var(--surface);
+  border: 2px solid var(--border-strong);
+  box-sizing: border-box;
+}
+.ss-milestone-dot svg { width: 9px; height: 9px; color: var(--fg-on-color); }
+.ss-milestone-dot.is-done { background: var(--success); border-color: var(--success); }
+.ss-milestone-dot.is-active {
+  background: var(--warning);
+  border-color: var(--warning);
+  box-shadow: 0 0 0 4px var(--warning-fill); /* glow ring (not elevation) */
+}
+.ss-milestone-dot.is-upcoming { background: var(--surface); border-color: var(--border-strong); }
+.ss-milestone-dot.is-blocked { background: var(--danger); border-color: var(--danger); }
+.ss-milestone-label { font-size: var(--fs-meta); color: var(--fg-secondary); text-align: center; }
+.ss-milestone-line { position: absolute; top: 7px; left: 50%; width: 100%; height: 2px; background: var(--border); z-index: 0; }
+.ss-milestone:last-child .ss-milestone-line { display: none; }
+
+/* ============================================================
+   13. NOTE TYPE TAGS
+   ============================================================ */
+.ss-notetag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-label);
+  font-weight: var(--w-medium);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: var(--r-sm);
+}
+.ss-notetag::before { content: ""; width: 6px; height: 6px; border-radius: 50%; }
+.ss-notetag.highlight { background: var(--success-fill); color: var(--success-text); }
+.ss-notetag.highlight::before { background: var(--note-highlight); }
+.ss-notetag.progress { background: var(--info-fill); color: var(--info-text); }
+.ss-notetag.progress::before { background: var(--note-progress); }
+.ss-notetag.concern { background: var(--danger-fill); color: var(--danger-text); }
+.ss-notetag.concern::before { background: var(--note-concern); }
+.ss-notetag.observation { background: var(--neutral-fill); color: var(--neutral-text); }
+.ss-notetag.observation::before { background: var(--note-observation); }
+
+/* ============================================================
+   14. TOGGLE SWITCHES
+   ============================================================ */
+.ss-switch {
+  position: relative;
+  display: inline-block;
+  width: var(--switch-w);
+  height: var(--switch-h);
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+.ss-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.ss-switch-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--bg-tertiary);
+  border: var(--bw) solid var(--border);
+  transition: background 120ms ease;
+}
+.ss-switch-thumb {
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  transform: translateY(-50%);
+  width: var(--switch-thumb);
+  height: var(--switch-thumb);
+  border-radius: 50%;
+  background: var(--surface);
+  transition: left 120ms ease;
+}
+.ss-switch input:checked + .ss-switch-track { background: var(--success); border-color: var(--success); }
+.ss-switch input:checked + .ss-switch-track + .ss-switch-thumb { left: calc(var(--switch-w) - var(--switch-thumb) - 2px); }
+
+/* ============================================================
+   DATE STATES (accessibility — color + icon)
+   ============================================================ */
+.ss-date-expired { color: var(--danger); display: inline-flex; align-items: center; gap: 4px; font-weight: var(--w-medium); }
+.ss-date-expiring { color: #9a6a12; display: inline-flex; align-items: center; gap: 4px; font-weight: var(--w-medium); }
+.ss-date-expired svg, .ss-date-expiring svg { width: 13px; height: 13px; }
+
+/* ============================================================
+   TEXT UTILITIES
+   ============================================================ */
+.ss-meta {
+  font-size: var(--fs-meta);
+  color: var(--fg-secondary);
+}
+.ss-label {
+  font-size: var(--fs-label);
+  font-weight: var(--w-medium);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--fg-secondary);
+}
