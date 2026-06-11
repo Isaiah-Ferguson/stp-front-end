@@ -16,6 +16,13 @@ import {
   UserCheck,
   BarChart3,
 } from "lucide-react";
+import AlertList from "../components/AlertList";
+import PipelineList from "../components/PipelineList";
+import TasksList from "../components/TasksList";
+import StaffList from "../components/StaffList";
+import Widget from "../components/Widget";
+import StatCard from "../components/StatCard";
+import BarChart from "../components/BarChart";
 
 /**
  * Admin Dashboard — full overview (stats, alerts, events, pipeline,
@@ -24,13 +31,14 @@ import {
 export default function DashboardPage() {
   return (
     <div className="adm-main">
+      <a href="#main-content" className="skip-link">Skip to main content</a>
       <div className="adm-topbar">
         <div className="titles">
           <h1>Dashboard</h1>
           <span className="date">Thursday, June 5, 2026</span>
         </div>
         <div className="right">
-          <div className="row tight" style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <div className="row tight flex items-center gap-1.5">
             <span className="ss-chip ss-chip--static">
               <span className="ss-dot mjc" />
               MJC
@@ -58,126 +66,28 @@ export default function DashboardPage() {
       <div className="adm-content">
         {/* stat grid */}
         <div className="adm-statgrid">
-          <div className="adm-stat">
-            <span className="label">Active Participants</span>
-            <span className="num">48</span>
-            <span className="delta up">
-              <TrendingUp />
-              +3 this month
-            </span>
-          </div>
-          <div className="adm-stat">
-            <span className="label">Attendance Today</span>
-            <span className="num">82%</span>
-            <span className="delta muted">
-              <Users />
-              39 of 48 present
-            </span>
-          </div>
-          <div className="adm-stat is-warn">
-            <span className="label">Open Tasks</span>
-            <span className="num">12</span>
-            <span className="delta warn">
-              <AlertTriangle />3 overdue
-            </span>
-          </div>
-          <div className="adm-stat is-danger">
-            <span className="label">Expiring Docs</span>
-            <span className="num">5</span>
-            <span className="delta danger">
-              <AlertCircle />
-              Within 30 days
-            </span>
-          </div>
+          <StatCard label="Active Participants" num={48} delta={<><TrendingUp /> +3 this month</>} deltaClass="up" />
+          <StatCard label="Attendance Today" num="82%" delta={<><Users /> 39 of 48 present</>} deltaClass="muted" />
+          <StatCard label="Open Tasks" num={12} delta={<><AlertTriangle />3 overdue</>} deltaClass="warn" className="is-warn" />
+          <StatCard label="Expiring Docs" num={5} delta={<><AlertCircle /> Within 30 days</>} deltaClass="danger" className="is-danger" />
         </div>
 
         {/* row 2: alerts + events */}
         <div className="adm-row2">
-          <div className="widget">
-            <div className="widget-head">
-              <AlertTriangle className="ico" style={{ color: "var(--warning)" }} />
-              <h3>Alerts</h3>
-              <a className="link" href="#">
-                View all
-              </a>
-            </div>
-            <div className="widget-body">
-              {[
-                {
-                  severity: "danger" as const,
-                  txt: "Marcus T. — POS expires in 6 days",
-                  sub: "Pathways · renewal needed",
-                  act: "Renew",
-                },
-                {
-                  severity: "danger" as const,
-                  txt: "Sofia R. — intake documents missing",
-                  sub: "MJC · blocking enrollment",
-                  act: "Upload",
-                },
-                {
-                  severity: "warning" as const,
-                  txt: "Rachel M. — CPR certification expires Jul 1",
-                  sub: "Staff · schedule recertification",
-                  act: "Schedule",
-                },
-                {
-                  severity: "warning" as const,
-                  txt: "Joss K. — TB clearance due",
-                  sub: "Manteca PT · request form",
-                  act: "Request",
-                },
-                {
-                  severity: "info" as const,
-                  txt: "2 prospective participants — no follow-up",
-                  sub: "MJC, Pathways · assign coordinator",
-                  act: "Assign",
-                },
-              ].map((a) => {
-                const Icon =
-                  a.severity === "danger"
-                    ? AlertCircle
-                    : a.severity === "warning"
-                    ? AlertTriangle
-                    : Info;
-                const iconColor =
-                  a.severity === "danger"
-                    ? "var(--danger)"
-                    : a.severity === "warning"
-                    ? "var(--warning)"
-                    : "var(--info)";
-                return (
-                  <div
-                    className="alert-row"
-                    key={a.txt}
-                    aria-label={`${a.severity === "danger" ? "Urgent" : a.severity === "warning" ? "Warning" : "Info"}: ${a.txt}`}
-                  >
-                    <Icon
-                      style={{ color: iconColor, width: 15, height: 15, flexShrink: 0, marginTop: 2 }}
-                      aria-hidden="true"
-                    />
-                    <div className="body">
-                      <div className="txt">{a.txt}</div>
-                      <div className="sub">{a.sub}</div>
-                    </div>
-                    <a className="act" href="#">
-                      {a.act}
-                    </a>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <Widget id="alerts-heading" title="Alerts" icon={<AlertTriangle className="ico ico--warning" />} linkText="View all">
+            <AlertList
+              items={[
+                { severity: "danger", txt: "Marcus T. — POS expires in 6 days", sub: "Pathways · renewal needed", act: "Renew" },
+                { severity: "danger", txt: "Sofia R. — intake documents missing", sub: "MJC · blocking enrollment", act: "Upload" },
+                { severity: "warning", txt: "Rachel M. — CPR certification expires Jul 1", sub: "Staff · schedule recertification", act: "Schedule" },
+                { severity: "warning", txt: "Joss K. — TB clearance due", sub: "Manteca PT · request form", act: "Request" },
+                { severity: "info", txt: "2 prospective participants — no follow-up", sub: "MJC, Pathways · assign coordinator", act: "Assign" },
+              ]}
+            />
+          </Widget>
 
-          <div className="widget">
-            <div className="widget-head">
-              <Calendar className="ico" style={{ color: "var(--primary)" }} />
-              <h3>Upcoming Events</h3>
-              <a className="link" href="#">
-                Calendar
-              </a>
-            </div>
-            <div className="widget-body">
+          <Widget id="events-heading" title="Upcoming Events" icon={<Calendar className="ico ico--primary" />} linkText="Calendar">
+            <div>
               {[
                 {
                   d: "06",
@@ -219,205 +129,64 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
-          </div>
+          </Widget>
         </div>
 
         {/* row 3: pipeline + tasks + onboarding */}
         <div className="adm-row3">
-          <div className="widget">
-            <div className="widget-head">
-              <GitBranch className="ico" style={{ color: "var(--primary)" }} />
-              <h3>Student Pipeline</h3>
-            </div>
-            <div className="widget-body">
-              <div className="list-row">
-                <span className="ss-avatar coordinator sm">AT</span>
-                <div className="grow">
-                  <div className="nm">Aaron T.</div>
-                  <div className="sub">MJC</div>
-                </div>
-                <span className="ss-badge is-prospective">
-                  <Clock />
-                  Prospective
-                </span>
-              </div>
-              <div className="list-row">
-                <span className="ss-avatar teacher sm">BL</span>
-                <div className="grow">
-                  <div className="nm">Bianca L.</div>
-                  <div className="sub">Pathways</div>
-                </div>
-                <span className="ss-badge is-active">
-                  <CheckCircle2 />
-                  Active
-                </span>
-              </div>
-              <div className="list-row">
-                <span className="ss-avatar admin sm">CM</span>
-                <div className="grow">
-                  <div className="nm">Carlos M.</div>
-                  <div className="sub">Manteca PT</div>
-                </div>
-                <span className="ss-badge is-attention">
-                  <AlertCircle />
-                  Docs missing
-                </span>
-              </div>
-              <div className="list-row">
-                <span className="ss-avatar teacher sm">DW</span>
-                <div className="grow">
-                  <div className="nm">Dana W.</div>
-                  <div className="sub">Pathways</div>
-                </div>
-                <span
-                  className="ss-badge"
-                  style={{ background: "var(--info-fill)", color: "var(--info-text)" }}
-                >
-                  <Flag />
-                  6-week mark
-                </span>
-              </div>
-              <div className="list-row">
-                <span className="ss-avatar coordinator sm">EH</span>
-                <div className="grow">
-                  <div className="nm">Eli H.</div>
-                  <div className="sub">MJC</div>
-                </div>
-                <span className="ss-badge is-active">
-                  <CheckCircle2 />
-                  Active
-                </span>
-              </div>
-            </div>
-          </div>
+          <Widget id="pipeline-heading" title="Student Pipeline" icon={<GitBranch className="ico ico--primary" />}>
+            <PipelineList
+              items={[
+                { initials: "AT", name: "Aaron T.", sub: "MJC", badge: { type: "prospective", text: "Prospective" } },
+                { initials: "BL", name: "Bianca L.", sub: "Pathways", badge: { type: "active", text: "Active" } },
+                { initials: "CM", name: "Carlos M.", sub: "Manteca PT", badge: { type: "attention", text: "Docs missing" } },
+                { initials: "DW", name: "Dana W.", sub: "Pathways", badge: { type: "info", text: "6-week mark" } },
+                { initials: "EH", name: "Eli H.", sub: "MJC", badge: { type: "active", text: "Active" } },
+              ]}
+            />
+          </Widget>
 
-          <div className="widget">
-            <div className="widget-head">
-              <CheckSquare className="ico" style={{ color: "var(--primary)" }} />
-              <h3>Open Tasks</h3>
-            </div>
-            <div className="widget-body">
-              {[
+          <Widget id="tasks-heading" title="Open Tasks" icon={<CheckSquare className="ico ico--primary" />}>
+            <TasksList
+              items={[
                 { nm: "Submit POS renewal — Marcus T.", sub: "Pathways", due: "2 days overdue", overdue: true },
                 { nm: "Collect intake docs — Sofia R.", sub: "MJC", due: "Overdue", overdue: true },
                 { nm: "Schedule June assessment", sub: "Manteca PT", due: "Due Jun 9", overdue: false },
                 { nm: "Confirm showcase volunteers", sub: "Productions", due: "Due Jun 12", overdue: false },
-              ].map((t) => (
-                <div className="task-row" key={t.nm}>
-                  <span className="ss-checkbox">
-                    <Check />
-                  </span>
-                  <div className="grow">
-                    <div className="nm">{t.nm}</div>
-                    <div className="sub">{t.sub}</div>
-                  </div>
-                  <span className={`due${t.overdue ? " overdue" : ""}`}>{t.due}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+              ]}
+            />
+          </Widget>
 
-          <div className="widget">
-            <div className="widget-head">
-              <UserCheck className="ico" style={{ color: "var(--primary)" }} />
-              <h3>Staff Onboarding</h3>
-            </div>
-            <div className="widget-body">
-              {[
+          <Widget id="onboard-heading" title="Staff Onboarding" icon={<UserCheck className="ico ico--primary" />}>
+            <StaffList
+              items={[
                 { nm: "Rachel M.", pct: 100, fill: "success" },
                 { nm: "Devon P.", pct: 80, fill: "warning" },
                 { nm: "Nina S.", pct: 60, fill: "warning" },
                 { nm: "Omar B.", pct: 40, fill: "warning" },
                 { nm: "Tariq J.", pct: 15, fill: "danger" },
-              ].map((s) => (
-                <div className="staff-row" key={s.nm}>
-                  <div className="top">
-                    <span className="nm">{s.nm}</span>
-                    <span className="pct">{s.pct}%</span>
-                  </div>
-                  <div className="ss-progress">
-                    <div className={`ss-progress-fill ${s.fill}`} style={{ width: `${s.pct}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+              ]}
+            />
+          </Widget>
         </div>
 
         {/* attendance chart */}
-        <div className="widget">
-          <div className="widget-head">
-            <BarChart3 className="ico" style={{ color: "var(--primary)" }} />
-            <h3>Attendance This Week</h3>
-          </div>
-          <div className="widget-body" style={{ padding: "var(--space-5) var(--space-4)" }}>
-            <div className="chart3">
-              <div className="chart-col">
-                <div className="chart-head">
-                  <span className="ss-dot mjc" />
-                  MJC
-                </div>
-                <div className="bars">
-                  {[
-                    { pct: 88, day: "Mon" },
-                    { pct: 92, day: "Wed" },
-                    { pct: 79, day: "Fri" },
-                  ].map((b) => (
-                    <div className="bar-wrap" key={b.day}>
-                      <span className="bar-pct">{b.pct}%</span>
-                      <span className="bar mjc" style={{ height: `${b.pct}%` }} />
-                      <span className="bar-day">{b.day}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="chart-col">
-                <div className="chart-head">
-                  <span className="ss-dot pathways" />
-                  Pathways
-                </div>
-                <div className="bars">
-                  {[
-                    { pct: 95, day: "Tue" },
-                    { pct: 90, day: "Thu" },
-                  ].map((b) => (
-                    <div className="bar-wrap" key={b.day}>
-                      <span className="bar-pct">{b.pct}%</span>
-                      <span className="bar pathways" style={{ height: `${b.pct}%` }} />
-                      <span className="bar-day">{b.day}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="chart-col">
-                <div className="chart-head">
-                  <span className="ss-dot manteca" />
-                  Manteca PT
-                </div>
-                <div className="bars">
-                  {[
-                    { pct: 74, day: "Mon" },
-                    { pct: 81, day: "Wed" },
-                    { pct: 85, day: "Fri" },
-                  ].map((b) => (
-                    <div className="bar-wrap" key={b.day}>
-                      <span className="bar-pct">{b.pct}%</span>
-                      <span className="bar manteca" style={{ height: `${b.pct}%` }} />
-                      <span className="bar-day">{b.day}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
+        <Widget id="attendance-heading" title="Attendance This Week" icon={<BarChart3 className="ico ico--primary" />} bodyClass="widget-body--padded">
+              <BarChart
+                columns={[
+                  { dotClass: "mjc", label: "MJC", bars: [ { pct: 88, day: "Mon" }, { pct: 92, day: "Wed" }, { pct: 79, day: "Fri" } ] },
+                  { dotClass: "pathways", label: "Pathways", bars: [ { pct: 95, day: "Tue" }, { pct: 90, day: "Thu" } ] },
+                  { dotClass: "manteca", label: "Manteca PT", bars: [ { pct: 74, day: "Mon" }, { pct: 81, day: "Wed" }, { pct: 85, day: "Fri" } ] },
+                ]}
+              />
+        </Widget>
         </div>
 
         <p className="ss-meta">
-          <Link href="/" style={{ color: "var(--primary)" }}>
+          <Link href="/" className="text-primary">
             ← Back to home
           </Link>
         </p>
       </div>
-    </div>
   );
 }

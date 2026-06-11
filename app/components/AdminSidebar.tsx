@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -108,11 +109,12 @@ export default function AdminSidebar() {
       />
       <nav className={`ss-sidebar adm-sidebar${open ? " is-open" : ""}`}>
       <div className="adm-logo" style={{ alignItems: "center", padding: "12px 12px 8px" }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src="/logo.png"
           alt="The Shining Stars Project"
-          style={{ height: 80, width: "auto", display: "block", mixBlendMode: "multiply" }}
+          width={120}
+          height={80}
+          style={{ width: "auto", display: "block", mixBlendMode: "multiply" }}
         />
         <div style={{
           fontSize: "var(--fs-label)",

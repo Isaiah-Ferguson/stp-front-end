@@ -71,6 +71,33 @@
 .widget-head .link { font-size: var(--fs-meta); color: var(--primary); text-decoration: none; font-weight: var(--w-medium); }
 .widget-body { padding: var(--space-2) var(--space-4); }
 .widget-body.flush { padding: 0 var(--space-4); }
+/* utility: larger widget body padding when needed */
+.widget-body--padded { padding: var(--space-5) var(--space-4); }
+
+/* small helper for primary-colored inline links */
+.text-primary { color: var(--primary); }
+
+/* Small icon utilities used across widgets */
+.ico { width: 15px; height: 15px; flex-shrink: 0; display: inline-block; }
+.ico--primary { color: var(--primary); }
+.ico--warning { color: var(--warning); }
+.ico--danger { color: var(--danger); }
+.ico--info { color: var(--info); }
+
+/* info-style badge (used in pipelines) */
+.ss-badge.info { background: var(--info-fill); color: var(--info-text); }
+
+/* Accessibility helpers */
+.skip-link {
+  position: absolute; left: -9999px; top: auto; width: 1px; height: 1px; overflow: hidden;
+}
+.skip-link:focus {
+  position: static; left: 0; width: auto; height: auto; padding: 8px 12px; background: var(--primary); color: var(--fg-on-color); border-radius: 6px; z-index: 9999;
+}
+
+.focusable-row:focus {
+  outline: 3px solid var(--primary); outline-offset: 2px;
+}
 
 /* ---- Alert rows ----------------------------------------- */
 .alert-row { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-3) 0; border-bottom: var(--bw) solid var(--border); }

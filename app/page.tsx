@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 
@@ -10,115 +11,34 @@ const DEMO_ROLES = [
 export default function LoginPage() {
   return (
     <>
-      <style>{`
-        .login-shell {
-          min-height: 100vh;
-          display: flex;
-          background: var(--bg);
-          font-family: var(--font-sans);
-        }
-        .login-brand {
-          flex: 1;
-          background: var(--brand-navy);
-          color: #fff;
-          padding: 48px 52px;
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          min-height: 100vh;
-        }
-        .login-form-panel {
-          width: 460px;
-          flex-shrink: 0;
-          min-height: 100vh;
-          background: var(--surface);
-          border-left: var(--bw) solid var(--border);
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          padding: 48px 44px;
-        }
-        .login-form-inner { max-width: 360px; width: 100%; margin: 0 auto; }
-        .login-field { display: flex; flex-direction: column; gap: 6px; }
-        .login-field-row { display: flex; align-items: center; justify-content: space-between; }
-        .login-input {
-          width: 100%; box-sizing: border-box;
-          height: 42px; padding: 0 var(--space-3);
-          font-family: var(--font-sans); font-size: var(--fs-body); color: var(--fg);
-          background: var(--surface); border: var(--bw) solid var(--border);
-          border-radius: var(--r-md); outline: none;
-        }
-        .login-input:focus { border-color: var(--border-hover); }
-        .login-input::placeholder { color: var(--fg-tertiary); }
-        .login-divider {
-          display: flex; align-items: center; gap: 12;
-          margin: 24px 0; color: var(--fg-tertiary); font-size: 12px;
-        }
-        .login-divider hr { flex: 1; border: none; border-top: var(--bw) solid var(--border); }
-        .login-role-btn {
-          display: flex; align-items: center; gap: 12px;
-          padding: 10px 12px; border-radius: var(--r-md);
-          border: var(--bw) solid var(--border); background: var(--surface);
-          text-decoration: none; color: var(--fg); cursor: pointer;
-          transition: border-color 80ms;
-        }
-        .login-role-btn:hover { border-color: var(--border-hover); background: var(--bg); }
-        /* mobile: hide brand panel, form fills screen */
-        @media (max-width: 768px) {
-          .login-brand { display: none; }
-          .login-form-panel {
-            width: 100%; border-left: none;
-            padding: 40px 24px;
-          }
-          .login-mobile-brand { display: flex !important; }
-        }
-        .login-mobile-brand { display: none; }
-      `}</style>
+      {/* Styles moved to app/styles/login.css and imported in globals.css */}
 
       <main className="login-shell">
         {/* ---- Brand panel (desktop left) ---- */}
         <div className="login-brand">
           <div>
             {/* Logo */}
-            <div style={{ marginBottom: 48 }}>
-              <div style={{
-                background: "#fff",
-                borderRadius: 12,
-                padding: "14px 18px",
-                display: "inline-block",
-              }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/logo.png"
-                  alt="The Shining Stars Project"
-                  style={{ height: 96, width: "auto", display: "block" }}
-                />
+            <div className="mb-12">
+              <div className="login-logo-wrap">
+                <Image src="/logo.png" alt="The Shining Stars Project" width={128} height={128} />
               </div>
             </div>
 
             {/* Headline */}
-            <h1 style={{
-              fontSize: 30, fontWeight: 500, lineHeight: 1.25,
-              color: "#fff", marginBottom: 14, maxWidth: 340,
-            }}>
+            <h1 className="login-headline">
               The CRM built for performing arts programs.
             </h1>
 
             {/* Mission statement */}
-            <div style={{ maxWidth: 380, marginTop: 24 }}>
-              <p style={{
-                fontSize: 16,
-                lineHeight: 1.7,
-                color: "rgba(255,255,255,0.72)",
-                fontStyle: "italic",
-              }}>
+            <div>
+              <p className="login-mission">
                 “Empowering individuals of all abilities through inclusive performing arts, creative expression, and a community where everyone has the opportunity to shine.”
               </p>
             </div>
           </div>
 
           {/* Footer */}
-          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.28)", marginTop: 32 }}>
+          <p className="login-footer-note">
             © 2026 Shining Stars Project. Internal use only.
           </p>
         </div>
@@ -128,60 +48,34 @@ export default function LoginPage() {
           <div className="login-form-inner">
 
             {/* Mobile-only brand mark */}
-            <div className="login-mobile-brand" style={{ marginBottom: 32 }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/logo.png"
-                alt="The Shining Stars Project"
-                style={{ height: 52, width: "auto", mixBlendMode: "multiply" }}
-              />
+            <div className="login-mobile-brand mb-8">
+              <Image src="/logo.png" alt="The Shining Stars Project" width={96} height={96} />
             </div>
 
             {/* Heading */}
-            <h2 style={{ fontSize: 22, fontWeight: 500, color: "var(--fg)", marginBottom: 6 }}>
+            <h2 className="text-xl font-medium text-fg mb-1">
               Welcome back
             </h2>
-            <p style={{ fontSize: 14, color: "var(--fg-secondary)", marginBottom: 32 }}>
+            <p className="text-sm text-fg-secondary mb-8">
               Sign in to your account to continue
             </p>
 
             {/* Form */}
-            <form style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            <form className="flex flex-col" style={{ gap: 18 }}>
               <div className="login-field">
                 <label className="ss-label" htmlFor="email">Email address</label>
-                <input
-                  id="email"
-                  type="email"
-                  className="login-input"
-                  placeholder="you@shiningstarsprogram.org"
-                  autoComplete="email"
-                />
+                <input id="email" type="email" className="login-input" placeholder="you@shiningstarsprogram.org" autoComplete="email" />
               </div>
 
               <div className="login-field">
                 <div className="login-field-row">
                   <label className="ss-label" htmlFor="password">Password</label>
-                  <a href="#" style={{
-                    fontSize: 12, color: "var(--primary)",
-                    textDecoration: "none", fontWeight: 500,
-                  }}>
-                    Forgot password?
-                  </a>
+                  <a href="#" className="text-primary font-medium text-xs" style={{ textDecoration: 'none' }}>Forgot password?</a>
                 </div>
-                <input
-                  id="password"
-                  type="password"
-                  className="login-input"
-                  placeholder="••••••••"
-                  autoComplete="current-password"
-                />
+                <input id="password" type="password" className="login-input" placeholder="••••••••" autoComplete="current-password" />
               </div>
 
-              <Link
-                href="/dashboard"
-                className="ss-btn ss-btn-primary"
-                style={{ justifyContent: "center", height: 44, fontSize: 14 }}
-              >
+              <Link href="/dashboard" className="ss-btn ss-btn-primary justify-center" style={{ height: 44, fontSize: 14 }}>
                 Sign in
               </Link>
             </form>
