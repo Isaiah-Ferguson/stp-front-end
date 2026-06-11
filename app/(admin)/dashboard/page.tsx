@@ -5,6 +5,7 @@ import {
   Users,
   AlertTriangle,
   AlertCircle,
+  Info,
   Calendar,
   GitBranch,
   Clock,
@@ -29,26 +30,27 @@ export default function DashboardPage() {
           <span className="date">Thursday, June 5, 2026</span>
         </div>
         <div className="right">
-          <div className="row tight" style={{ display: "flex", gap: 8 }}>
-            <span className="ss-chip is-active mjc" style={{ cursor: "pointer" }}>
-              All programs
-            </span>
-            <span className="ss-chip">
+          <div className="row tight" style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <span className="ss-chip ss-chip--static">
               <span className="ss-dot mjc" />
               MJC
             </span>
-            <span className="ss-chip">
+            <span className="ss-chip ss-chip--static">
               <span className="ss-dot pathways" />
               Pathways
             </span>
-            <span className="ss-chip">
+            <span className="ss-chip ss-chip--static">
               <span className="ss-dot manteca" />
               Manteca PT
+            </span>
+            <span className="ss-chip ss-chip--static">
+              <span className="ss-dot productions" />
+              Productions
             </span>
           </div>
           <button className="ss-btn ss-btn-primary">
             <Plus className="ss-btn-icon" />
-            Quick add
+            Add participant
           </button>
         </div>
       </div>
@@ -57,7 +59,7 @@ export default function DashboardPage() {
         {/* stat grid */}
         <div className="adm-statgrid">
           <div className="adm-stat">
-            <span className="label">Active Students</span>
+            <span className="label">Active Participants</span>
             <span className="num">48</span>
             <span className="delta up">
               <TrendingUp />
@@ -72,14 +74,14 @@ export default function DashboardPage() {
               39 of 48 present
             </span>
           </div>
-          <div className="adm-stat">
+          <div className="adm-stat is-warn">
             <span className="label">Open Tasks</span>
             <span className="num">12</span>
             <span className="delta warn">
               <AlertTriangle />3 overdue
             </span>
           </div>
-          <div className="adm-stat">
+          <div className="adm-stat is-danger">
             <span className="label">Expiring Docs</span>
             <span className="num">5</span>
             <span className="delta danger">
@@ -102,47 +104,68 @@ export default function DashboardPage() {
             <div className="widget-body">
               {[
                 {
-                  dot: "red",
+                  severity: "danger" as const,
                   txt: "Marcus T. — POS expires in 6 days",
                   sub: "Pathways · renewal needed",
-                  act: "Renew →",
+                  act: "Renew",
                 },
                 {
-                  dot: "red",
+                  severity: "danger" as const,
                   txt: "Sofia R. — intake documents missing",
                   sub: "MJC · blocking enrollment",
-                  act: "Upload →",
+                  act: "Upload",
                 },
                 {
-                  dot: "amber",
+                  severity: "warning" as const,
                   txt: "Rachel M. — CPR certification expires Jul 1",
-                  sub: "Staff · schedule recert",
-                  act: "Schedule →",
+                  sub: "Staff · schedule recertification",
+                  act: "Schedule",
                 },
                 {
-                  dot: "amber",
+                  severity: "warning" as const,
                   txt: "Joss K. — TB clearance due",
                   sub: "Manteca PT · request form",
-                  act: "Request →",
+                  act: "Request",
                 },
                 {
-                  dot: "blue",
-                  txt: "2 prospective students — no follow-up",
+                  severity: "info" as const,
+                  txt: "2 prospective participants — no follow-up",
                   sub: "MJC, Pathways · assign coordinator",
-                  act: "Assign →",
+                  act: "Assign",
                 },
-              ].map((a) => (
-                <div className="alert-row" key={a.txt}>
-                  <span className={`dot ${a.dot}`} />
-                  <div className="body">
-                    <div className="txt">{a.txt}</div>
-                    <div className="sub">{a.sub}</div>
+              ].map((a) => {
+                const Icon =
+                  a.severity === "danger"
+                    ? AlertCircle
+                    : a.severity === "warning"
+                    ? AlertTriangle
+                    : Info;
+                const iconColor =
+                  a.severity === "danger"
+                    ? "var(--danger)"
+                    : a.severity === "warning"
+                    ? "var(--warning)"
+                    : "var(--info)";
+                return (
+                  <div
+                    className="alert-row"
+                    key={a.txt}
+                    aria-label={`${a.severity === "danger" ? "Urgent" : a.severity === "warning" ? "Warning" : "Info"}: ${a.txt}`}
+                  >
+                    <Icon
+                      style={{ color: iconColor, width: 15, height: 15, flexShrink: 0, marginTop: 2 }}
+                      aria-hidden="true"
+                    />
+                    <div className="body">
+                      <div className="txt">{a.txt}</div>
+                      <div className="sub">{a.sub}</div>
+                    </div>
+                    <a className="act" href="#">
+                      {a.act}
+                    </a>
                   </div>
-                  <a className="act" href="#">
-                    {a.act}
-                  </a>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 

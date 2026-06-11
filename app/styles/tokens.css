@@ -17,7 +17,7 @@
   /* ---- Ink ------------------------------------------------- */
   --fg: #2b2a26; /* primary text, warm near-black     */
   --fg-secondary: #6b6960; /* meta, labels, secondary text      */
-  --fg-tertiary: #98968b; /* placeholder, disabled, faint      */
+  --fg-tertiary: #706e68; /* placeholder, disabled, faint — WCAG AA ≥4.5:1 on --bg */
   --fg-on-color: #ffffff; /* text on saturated fills           */
 
   /* ---- Borders (0.5px hairlines) --------------------------- */

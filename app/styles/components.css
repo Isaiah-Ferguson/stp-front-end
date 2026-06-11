@@ -24,7 +24,7 @@
   font-weight: var(--w-medium);
   letter-spacing: var(--ls-label);
   text-transform: uppercase;
-  color: var(--fg-tertiary);
+  color: var(--fg-secondary);
   padding: 0 var(--space-3) var(--space-2);
 }
 .ss-nav-item {
@@ -175,6 +175,8 @@
 .ss-chip.is-active.manteca { background: var(--manteca-fill); color: var(--manteca-text); border-color: var(--manteca-border); }
 .ss-chip.is-active.productions { background: var(--productions-fill); color: var(--productions-text); border-color: var(--productions-border); }
 .ss-chip.is-active.staff { background: var(--staff-fill); color: var(--staff-text); border-color: var(--staff-border); }
+/* display-only chips: no interactive affordance */
+.ss-chip--static { cursor: default; pointer-events: none; }
 
 /* ---- Program dots (reusable) ------------------------------ */
 .ss-dot.mjc { background: var(--mjc); }

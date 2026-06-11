@@ -12,7 +12,7 @@
 .adm-logo .brand { display: flex; align-items: center; gap: var(--space-2); font-size: var(--fs-h3); font-weight: var(--w-medium); }
 .adm-logo .star { width: 22px; height: 22px; border-radius: var(--r-sm); background: var(--productions); display: inline-flex; align-items: center; justify-content: center; color: #fff; }
 .adm-logo .star svg { width: 14px; height: 14px; }
-.adm-logo .sub { font-size: var(--fs-label); letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--fg-tertiary); padding-left: 30px; }
+.adm-logo .sub { font-size: var(--fs-label); letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--fg-secondary); padding-left: 30px; }
 .adm-nav { flex: 1; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: var(--space-4); padding-right: 2px; }
 .adm-foot {
   display: flex; align-items: center; gap: var(--space-2);
@@ -22,7 +22,7 @@
 }
 .adm-foot .who { display: flex; flex-direction: column; line-height: 1.25; }
 .adm-foot .who .nm { font-size: var(--fs-body); font-weight: var(--w-medium); }
-.adm-foot .who .rl { font-size: var(--fs-label); text-transform: uppercase; letter-spacing: var(--ls-label); color: var(--fg-tertiary); }
+.adm-foot .who .rl { font-size: var(--fs-label); text-transform: uppercase; letter-spacing: var(--ls-label); color: var(--fg-secondary); }
 
 /* ---- Main column ----------------------------------------- */
 .adm-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -53,6 +53,9 @@
 .delta.warn { color: #9a6a12; }
 .delta.danger { color: var(--danger-text); }
 .delta.muted { color: var(--fg-secondary); }
+/* urgency tint — distinguishes warning/danger stats from neutral ones at a glance */
+.adm-stat.is-warn { background: var(--warning-fill); }
+.adm-stat.is-danger { background: var(--danger-fill); }
 
 /* ---- Widgets -------------------------------------------- */
 .adm-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); align-items: start; }
@@ -77,7 +80,6 @@
 .alert-row .txt { font-size: var(--fs-body); }
 .alert-row .sub { font-size: var(--fs-meta); color: var(--fg-secondary); margin-top: 1px; }
 .alert-row .act { font-size: var(--fs-meta); color: var(--primary); text-decoration: none; font-weight: var(--w-medium); white-space: nowrap; }
-.dot.red { background: var(--danger); } .dot.amber { background: var(--warning); } .dot.blue { background: var(--info); }
 
 /* ---- Event rows ----------------------------------------- */
 .event-row { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) 0; border-bottom: var(--bw) solid var(--border); }
@@ -240,7 +242,7 @@ table.tbl { width: 100%; min-width: 1040px; border-collapse: collapse; font-size
 .evt.pathways { background: var(--pathways-fill); color: var(--pathways-text); }
 .evt.manteca { background: var(--manteca-fill); color: var(--manteca-text); }
 .evt.staff { background: var(--staff-fill); color: var(--staff-text); }
-.evt.milestone { background: var(--productions-fill); color: var(--productions-text); border-left: 3px solid var(--productions); border-radius: 0 var(--r-sm) var(--r-sm) 0; font-weight: var(--w-medium); }
+.evt.milestone { background: var(--productions-fill); color: var(--productions-text); border: 1.5px solid var(--productions-border); border-radius: var(--r-sm); font-weight: var(--w-medium); }
 .evt .more { color: var(--fg-secondary); }
 .cal-cell .more-link { font-size: var(--fs-label); color: var(--fg-secondary); padding-left: 4px; }
 
