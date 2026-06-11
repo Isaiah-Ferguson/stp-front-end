@@ -81,6 +81,14 @@
   --neutral-text: #444441;
   --neutral-border: #c9c7be;
 
+  /* ---- Brand colors (from logo) ---------------------------- */
+  --brand-orange: #f07830;
+  --brand-orange-hover: #d6641e;
+  --brand-orange-fill: #feede2;
+  --brand-orange-text: #7a3010;
+  --brand-orange-border: #f5b08a;
+  --brand-navy: #1b3a8a;
+
   /* ---- Primary action color (maps to brand blue) ----------- */
   --primary: #378add;
   --primary-hover: #2c76c2;

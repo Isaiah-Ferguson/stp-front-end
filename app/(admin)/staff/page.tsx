@@ -15,7 +15,37 @@ import {
   Upload,
   ListChecks,
   Pencil,
+  X,
 } from "lucide-react";
+
+// ── Shared helpers ────────────────────────────────────────────────────────────
+
+type StaffProg = "mjc" | "pathways" | "manteca";
+
+const PROG_NAMES: Record<StaffProg, string> = {
+  mjc: "MJC",
+  pathways: "Pathways",
+  manteca: "Manteca PT",
+};
+
+function toInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "??";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function buildHireLabel(dateStr: string): string {
+  const d = dateStr
+    ? new Date(dateStr + "T12:00:00")
+    : new Date();
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  const prefix = d > today ? "Start date" : "Hired";
+  return `${prefix} ${d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+}
+
+// ── Checklist data for Joss K.'s expanded body ───────────────────────────────
 
 type CheckItem = { label: string; date: string; dateCls?: string };
 type CheckSection = { label: string; items: CheckItem[] };
@@ -50,10 +80,322 @@ const JOSS_SECTIONS: CheckSection[] = [
   },
 ];
 
+// ── Add Staff Modal ───────────────────────────────────────────────────────────
+
+type StaffRole = "Teacher" | "Coordinator" | "Admin";
+
+type AddStaffForm = {
+  nm: string;
+  role: StaffRole | "";
+  programs: StaffProg[];
+  startDate: string;
+};
+
+const EMPTY_STAFF_FORM: AddStaffForm = {
+  nm: "",
+  role: "",
+  programs: [],
+  startDate: "",
+};
+
+function AddStaffModal({
+  form,
+  setForm,
+  onClose,
+  onSubmit,
+}: {
+  form: AddStaffForm;
+  setForm: React.Dispatch<React.SetStateAction<AddStaffForm>>;
+  onClose: () => void;
+  onSubmit: () => void;
+}) {
+  const canSubmit = form.nm.trim().length > 0 && form.role !== "" && form.programs.length > 0;
+  const allSelected = form.programs.length === 3;
+
+  function toggleAll() {
+    setForm((f) => ({
+      ...f,
+      programs: allSelected ? [] : ["mjc", "pathways", "manteca"],
+    }));
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    border: "0.5px solid var(--border-hover)",
+    borderRadius: "var(--r-md)",
+    padding: "8px 12px",
+    fontSize: 13,
+    color: "var(--fg)",
+    background: "var(--surface)",
+    outline: "none",
+    boxSizing: "border-box",
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(43,42,38,.45)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 200,
+        padding: "var(--space-4)",
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        style={{
+          background: "var(--surface)",
+          borderRadius: "var(--r-lg)",
+          width: "min(480px, 100%)",
+          display: "flex",
+          flexDirection: "column",
+          border: "0.5px solid var(--border-hover)",
+          maxHeight: "90vh",
+        }}
+      >
+        {/* header */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "var(--space-4)",
+            borderBottom: "0.5px solid var(--border)",
+            flexShrink: 0,
+          }}
+        >
+          <div>
+            <h3 style={{ fontSize: 15, fontWeight: 500, margin: "0 0 2px" }}>
+              Add staff member
+            </h3>
+            <div style={{ fontSize: 12, color: "var(--fg-tertiary)" }}>
+              New member will be added to the onboarding queue
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: "var(--fg-tertiary)",
+              padding: 4,
+              borderRadius: "var(--r-sm)",
+            }}
+          >
+            <X style={{ width: 16, height: 16 }} />
+          </button>
+        </div>
+
+        {/* body */}
+        <div
+          style={{
+            padding: "var(--space-4)",
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--space-4)",
+            overflowY: "auto",
+          }}
+        >
+          {/* Full name */}
+          <div>
+            <div className="ss-label" style={{ marginBottom: 6 }}>
+              Full name <span style={{ color: "var(--danger)", fontWeight: 400 }}>*</span>
+            </div>
+            <input
+              type="text"
+              placeholder="e.g. Jordan Rivera"
+              value={form.nm}
+              onChange={(e) => setForm((f) => ({ ...f, nm: e.target.value }))}
+              style={inputStyle}
+              autoFocus
+            />
+          </div>
+
+          {/* Role */}
+          <div>
+            <div className="ss-label" style={{ marginBottom: 8 }}>
+              Role <span style={{ color: "var(--danger)", fontWeight: 400 }}>*</span>
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              {(["Teacher", "Coordinator", "Admin"] as StaffRole[]).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  className={`ss-chip${form.role === r ? " is-active" : ""}`}
+                  style={{ cursor: "pointer" }}
+                  onClick={() => setForm((f) => ({ ...f, role: r }))}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Programs */}
+          <div>
+            <div className="ss-label" style={{ marginBottom: 8 }}>
+              Programs <span style={{ color: "var(--danger)", fontWeight: 400 }}>*</span>
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                className={`ss-chip${allSelected ? " is-active" : ""}`}
+                style={{ cursor: "pointer" }}
+                onClick={toggleAll}
+              >
+                All programs
+              </button>
+              {(["mjc", "pathways", "manteca"] as StaffProg[]).map((p) => {
+                const checked = form.programs.includes(p);
+                return (
+                  <label
+                    key={p}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "5px 11px",
+                      borderRadius: "var(--r-pill)",
+                      border: `0.5px solid ${checked ? `var(--${p}-border)` : "var(--border)"}`,
+                      background: checked ? `var(--${p}-fill)` : "var(--surface)",
+                      color: checked ? `var(--${p}-text)` : "var(--fg-secondary)",
+                      cursor: "pointer",
+                      fontSize: 13,
+                      userSelect: "none",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      style={{ display: "none" }}
+                      checked={checked}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          programs: e.target.checked
+                            ? [...f.programs, p]
+                            : f.programs.filter((x) => x !== p),
+                        }))
+                      }
+                    />
+                    <span className={`ss-dot ${p}`} />
+                    {PROG_NAMES[p]}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Start date */}
+          <div>
+            <div className="ss-label" style={{ marginBottom: 6 }}>
+              Start date{" "}
+              <span style={{ fontSize: 11, color: "var(--fg-tertiary)", fontWeight: 400 }}>
+                Leave blank to use today
+              </span>
+            </div>
+            <input
+              type="date"
+              value={form.startDate}
+              onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
+              style={{ ...inputStyle, width: "60%" }}
+            />
+          </div>
+        </div>
+
+        {/* footer */}
+        <div
+          style={{
+            padding: "var(--space-3) var(--space-4)",
+            borderTop: "0.5px solid var(--border)",
+            display: "flex",
+            gap: 8,
+            justifyContent: "flex-end",
+            flexShrink: 0,
+          }}
+        >
+          <button className="ss-btn" type="button" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            className="ss-btn ss-btn-primary"
+            type="button"
+            onClick={onSubmit}
+            disabled={!canSubmit}
+          >
+            <UserPlus className="ss-btn-icon" />
+            Add staff member
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── New staff member type (added via modal) ───────────────────────────────────
+
+type NewStaffMember = {
+  key: string;
+  init: string;
+  nm: string;
+  avatarRole: string;
+  title: string;
+  programLabel: string;
+  hireLabel: string;
+};
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
 export default function StaffPage() {
-  // index of expanded accordion; Joss K. (1) expanded by default
-  const [expanded, setExpanded] = useState<number | null>(1);
-  const toggle = (i: number) => setExpanded((cur) => (cur === i ? null : i));
+  // accordion: keyed by name so new entries don't shift indices
+  const [expanded, setExpanded] = useState<string | null>("Joss K.");
+  const toggle = (nm: string) => setExpanded((cur) => (cur === nm ? null : nm));
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState<AddStaffForm>(EMPTY_STAFF_FORM);
+  const [newStaff, setNewStaff] = useState<NewStaffMember[]>([]);
+
+  function openModal() {
+    setForm(EMPTY_STAFF_FORM);
+    setModalOpen(true);
+  }
+
+  function closeModal() {
+    setModalOpen(false);
+  }
+
+  function handleSubmit() {
+    const progLabel =
+      form.programs.length === 3
+        ? "All programs"
+        : form.programs.map((p) => PROG_NAMES[p]).join(", ");
+
+    const avatarRole =
+      form.role === "Teacher"
+        ? "teacher"
+        : form.role === "Coordinator"
+        ? "coordinator"
+        : "admin";
+
+    const member: NewStaffMember = {
+      key: form.nm.trim() + Date.now(),
+      init: toInitials(form.nm),
+      nm: form.nm.trim(),
+      avatarRole,
+      title: form.role,
+      programLabel: progLabel,
+      hireLabel: buildHireLabel(form.startDate),
+    };
+
+    setNewStaff((prev) => [member, ...prev]);
+    closeModal();
+  }
 
   return (
     <div className="adm-main">
@@ -62,11 +404,11 @@ export default function StaffPage() {
           <h1>Staff Onboarding</h1>
         </div>
         <div className="right">
-          <button className="ss-btn">
+          <button className="ss-btn" type="button">
             <Download className="ss-btn-icon" />
             Export
           </button>
-          <button className="ss-btn ss-btn-primary">
+          <button className="ss-btn ss-btn-primary" type="button" onClick={openModal}>
             <UserPlus className="ss-btn-icon" />
             Add staff member
           </button>
@@ -98,9 +440,40 @@ export default function StaffPage() {
         <div className="staff-layout">
           {/* STAFF LIST */}
           <div className="staff-main">
+
+            {/* newly added staff members */}
+            {newStaff.map((s) => (
+              <div key={s.key} className="sacc is-collapsed">
+                <div className="sacc-head">
+                  <span className={`ss-avatar ${s.avatarRole}`}>{s.init}</span>
+                  <div className="sacc-id" style={{ display: "block" }}>
+                    <div className="nm">
+                      {s.nm} <span className="newhire-tag">New hire</span>
+                    </div>
+                    <div className="sub">
+                      {s.title} · {s.programLabel} · {s.hireLabel}
+                    </div>
+                  </div>
+                  <div className="sacc-prog">
+                    <div className="ss-progress">
+                      <div className="ss-progress-fill danger" style={{ width: "0%" }} />
+                    </div>
+                    <span className="pct">0%</span>
+                  </div>
+                  <span className="ss-badge is-attention">
+                    <CircleDot />
+                    Just started
+                  </span>
+                  <span className="sacc-chev">
+                    <ChevronDown />
+                  </span>
+                </div>
+              </div>
+            ))}
+
             {/* Rachel M. — complete */}
-            <div className={`sacc${expanded === 0 ? "" : " is-collapsed"}`}>
-              <div className="sacc-head" onClick={() => toggle(0)}>
+            <div className={`sacc${expanded === "Rachel M." ? "" : " is-collapsed"}`}>
+              <div className="sacc-head" onClick={() => toggle("Rachel M.")}>
                 <span className="ss-avatar teacher">RM</span>
                 <div className="sacc-id" style={{ display: "block" }}>
                   <div className="nm">Rachel M.</div>
@@ -123,8 +496,8 @@ export default function StaffPage() {
             </div>
 
             {/* Joss K. — expanded, renewal due */}
-            <div className={`sacc${expanded === 1 ? "" : " is-collapsed"}`}>
-              <div className="sacc-head" onClick={() => toggle(1)}>
+            <div className={`sacc${expanded === "Joss K." ? "" : " is-collapsed"}`}>
+              <div className="sacc-head" onClick={() => toggle("Joss K.")}>
                 <span className="ss-avatar coordinator">JK</span>
                 <div className="sacc-id" style={{ display: "block" }}>
                   <div className="nm">Joss K.</div>
@@ -154,7 +527,10 @@ export default function StaffPage() {
                           <Check />
                         </span>
                         <span className="ss-checkrow-label">{it.label}</span>
-                        <span className="ss-checkrow-date" style={it.dateCls ? { color: it.dateCls } : undefined}>
+                        <span
+                          className="ss-checkrow-date"
+                          style={it.dateCls ? { color: it.dateCls } : undefined}
+                        >
                           {it.date}
                         </span>
                       </div>
@@ -217,8 +593,8 @@ export default function StaffPage() {
             </div>
 
             {/* Maria S. — in progress */}
-            <div className={`sacc${expanded === 2 ? "" : " is-collapsed"}`}>
-              <div className="sacc-head" onClick={() => toggle(2)}>
+            <div className={`sacc${expanded === "Maria S." ? "" : " is-collapsed"}`}>
+              <div className="sacc-head" onClick={() => toggle("Maria S.")}>
                 <span className="ss-avatar staff" style={{ background: "var(--staff)" }}>MS</span>
                 <div className="sacc-id" style={{ display: "block" }}>
                   <div className="nm">Maria S.</div>
@@ -241,8 +617,8 @@ export default function StaffPage() {
             </div>
 
             {/* Casey T. — new hire */}
-            <div className={`sacc${expanded === 3 ? "" : " is-collapsed"}`}>
-              <div className="sacc-head" onClick={() => toggle(3)}>
+            <div className={`sacc${expanded === "Casey T." ? "" : " is-collapsed"}`}>
+              <div className="sacc-head" onClick={() => toggle("Casey T.")}>
                 <span className="ss-avatar admin">CT</span>
                 <div className="sacc-id" style={{ display: "block" }}>
                   <div className="nm">
@@ -266,7 +642,7 @@ export default function StaffPage() {
               </div>
             </div>
 
-            <button className="create-proj">
+            <button className="create-proj" type="button" onClick={openModal}>
               <UserPlus />
               Add new staff member
             </button>
@@ -322,7 +698,7 @@ export default function StaffPage() {
                   they&apos;re cleared to work with participants.
                 </span>
               </div>
-              <button className="btn-dashed">
+              <button className="btn-dashed" type="button">
                 <Pencil />
                 Edit checklist template
               </button>
@@ -363,6 +739,15 @@ export default function StaffPage() {
           </div>
         </div>
       </div>
+
+      {modalOpen && (
+        <AddStaffModal
+          form={form}
+          setForm={setForm}
+          onClose={closeModal}
+          onSubmit={handleSubmit}
+        />
+      )}
     </div>
   );
 }

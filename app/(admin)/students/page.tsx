@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import {
   UserPlus,
   Download,
@@ -12,6 +15,7 @@ import {
   CheckCircle2,
   MinusCircle,
   FileX,
+  X,
   type LucideIcon,
 } from "lucide-react";
 
@@ -26,10 +30,7 @@ const PROGRAMS: Record<Program, { name: string; role: string }> = {
   manteca: { name: "Manteca PT", role: "coordinator" },
 };
 
-const STATUS_BADGE: Record<
-  Status,
-  { cls: string; icon: LucideIcon; label: string }
-> = {
+const STATUS_BADGE: Record<Status, { cls: string; icon: LucideIcon; label: string }> = {
   active: { cls: "is-active", icon: CheckCircle2, label: "Active" },
   prospective: { cls: "is-prospective", icon: Clock, label: "Prospective" },
   attention: { cls: "is-attention", icon: AlertCircle, label: "Needs attention" },
@@ -61,7 +62,7 @@ type Student = {
   start: string;
 };
 
-const DATA: Student[] = [
+const INITIAL_DATA: Student[] = [
   { init: "MT", nm: "Marcus T.", dob: "b. 1994", prog: "pathways", status: "attention", alerts: ["expiring"], att: 62, exp: { kind: "red", label: "6 days" }, sc: "R. Alvarez", start: "Mar 2022" },
   { init: "SR", nm: "Sofia R.", dob: "b. 1999", prog: "mjc", status: "attention", alerts: ["missing"], att: 0, exp: { kind: "amber", label: "22 days" }, sc: "D. Kwan", start: "May 2026" },
   { init: "BL", nm: "Bianca L.", dob: "b. 1991", prog: "pathways", status: "active", alerts: [], att: 95, exp: { kind: "green", label: "Safe" }, sc: "R. Alvarez", start: "Sep 2021" },
@@ -74,7 +75,297 @@ const DATA: Student[] = [
   { init: "NR", nm: "Noah R.", dob: "b. 2001", prog: "pathways", status: "prospective", alerts: [], att: 0, exp: { kind: "amber", label: "Pending" }, sc: "R. Alvarez", start: "May 2026" },
 ];
 
+// ── Add Student Modal ─────────────────────────────────────────────────────────
+
+type AddStudentForm = {
+  nm: string;
+  birthYear: string;
+  prog: Program | "";
+  status: "active" | "prospective";
+  sc: string;
+};
+
+const EMPTY_FORM: AddStudentForm = {
+  nm: "",
+  birthYear: "",
+  prog: "",
+  status: "prospective",
+  sc: "",
+};
+
+function toInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "??";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function currentMonthYear(): string {
+  const d = new Date();
+  return d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+}
+
+function AddStudentModal({
+  form,
+  setForm,
+  onClose,
+  onSubmit,
+}: {
+  form: AddStudentForm;
+  setForm: React.Dispatch<React.SetStateAction<AddStudentForm>>;
+  onClose: () => void;
+  onSubmit: () => void;
+}) {
+  const canSubmit = form.nm.trim().length > 0 && form.prog !== "";
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    border: "0.5px solid var(--border-hover)",
+    borderRadius: "var(--r-md)",
+    padding: "8px 12px",
+    fontSize: 13,
+    color: "var(--fg)",
+    background: "var(--surface)",
+    outline: "none",
+    boxSizing: "border-box",
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(43,42,38,.45)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 200,
+        padding: "var(--space-4)",
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        style={{
+          background: "var(--surface)",
+          borderRadius: "var(--r-lg)",
+          width: "min(480px, 100%)",
+          display: "flex",
+          flexDirection: "column",
+          border: "0.5px solid var(--border-hover)",
+          maxHeight: "90vh",
+        }}
+      >
+        {/* header */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "var(--space-4)",
+            borderBottom: "0.5px solid var(--border)",
+            flexShrink: 0,
+          }}
+        >
+          <div>
+            <h3 style={{ fontSize: 15, fontWeight: 500, margin: "0 0 2px" }}>Add student</h3>
+            <div style={{ fontSize: 12, color: "var(--fg-tertiary)" }}>
+              New student will appear in the roster
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: "var(--fg-tertiary)",
+              padding: 4,
+              borderRadius: "var(--r-sm)",
+            }}
+          >
+            <X style={{ width: 16, height: 16 }} />
+          </button>
+        </div>
+
+        {/* body */}
+        <div
+          style={{
+            padding: "var(--space-4)",
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--space-4)",
+            overflowY: "auto",
+          }}
+        >
+          {/* Full name */}
+          <div>
+            <div className="ss-label" style={{ marginBottom: 6 }}>
+              Full name <span style={{ color: "var(--danger)", fontWeight: 400 }}>*</span>
+            </div>
+            <input
+              type="text"
+              placeholder="e.g. Jordan Rivera"
+              value={form.nm}
+              onChange={(e) => setForm((f) => ({ ...f, nm: e.target.value }))}
+              style={inputStyle}
+              autoFocus
+            />
+          </div>
+
+          {/* Birth year */}
+          <div>
+            <div className="ss-label" style={{ marginBottom: 6 }}>
+              Birth year{" "}
+              <span style={{ fontSize: 11, color: "var(--fg-tertiary)", fontWeight: 400 }}>
+                Optional
+              </span>
+            </div>
+            <input
+              type="number"
+              min={1940}
+              max={2015}
+              placeholder="e.g. 1998"
+              value={form.birthYear}
+              onChange={(e) => setForm((f) => ({ ...f, birthYear: e.target.value }))}
+              style={{ ...inputStyle, width: "40%" }}
+            />
+          </div>
+
+          {/* Program */}
+          <div>
+            <div className="ss-label" style={{ marginBottom: 8 }}>
+              Program <span style={{ color: "var(--danger)", fontWeight: 400 }}>*</span>
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {(["mjc", "pathways", "manteca"] as Program[]).map((p) => {
+                const selected = form.prog === p;
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, prog: p }))}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "6px 12px",
+                      borderRadius: "var(--r-pill)",
+                      border: `0.5px solid ${selected ? `var(--${p}-border)` : "var(--border)"}`,
+                      background: selected ? `var(--${p}-fill)` : "var(--surface)",
+                      color: selected ? `var(--${p}-text)` : "var(--fg-secondary)",
+                      cursor: "pointer",
+                      fontSize: 13,
+                    }}
+                  >
+                    <span className={`ss-dot ${p}`} />
+                    {PROGRAMS[p].name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Status */}
+          <div>
+            <div className="ss-label" style={{ marginBottom: 8 }}>Status</div>
+            <div style={{ display: "flex", gap: 6 }}>
+              {(["prospective", "active"] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  className={`ss-chip${form.status === s ? " is-active" : ""}`}
+                  style={{ cursor: "pointer", textTransform: "capitalize" }}
+                  onClick={() => setForm((f) => ({ ...f, status: s }))}
+                >
+                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Service Coordinator */}
+          <div>
+            <div className="ss-label" style={{ marginBottom: 6 }}>
+              Service coordinator{" "}
+              <span style={{ fontSize: 11, color: "var(--fg-tertiary)", fontWeight: 400 }}>
+                Optional
+              </span>
+            </div>
+            <input
+              type="text"
+              placeholder="e.g. R. Alvarez"
+              value={form.sc}
+              onChange={(e) => setForm((f) => ({ ...f, sc: e.target.value }))}
+              style={inputStyle}
+            />
+          </div>
+        </div>
+
+        {/* footer */}
+        <div
+          style={{
+            padding: "var(--space-3) var(--space-4)",
+            borderTop: "0.5px solid var(--border)",
+            display: "flex",
+            gap: 8,
+            justifyContent: "flex-end",
+            flexShrink: 0,
+          }}
+        >
+          <button className="ss-btn" type="button" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            className="ss-btn ss-btn-primary"
+            type="button"
+            onClick={onSubmit}
+            disabled={!canSubmit}
+          >
+            <UserPlus className="ss-btn-icon" />
+            Add student
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
 export default function StudentsPage() {
+  const [data, setData] = useState<Student[]>(INITIAL_DATA);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState<AddStudentForm>(EMPTY_FORM);
+
+  function openModal() {
+    setForm(EMPTY_FORM);
+    setModalOpen(true);
+  }
+
+  function closeModal() {
+    setModalOpen(false);
+  }
+
+  function handleSubmit() {
+    const newStudent: Student = {
+      init: toInitials(form.nm),
+      nm: form.nm.trim(),
+      dob: form.birthYear ? `b. ${form.birthYear}` : "—",
+      prog: form.prog as Program,
+      status: form.status,
+      alerts: [],
+      att: 0,
+      exp: { kind: "amber", label: "Pending" },
+      sc: form.sc.trim() || "—",
+      start: currentMonthYear(),
+    };
+    setData((prev) => [newStudent, ...prev]);
+    closeModal();
+  }
+
   return (
     <div className="adm-main">
       <div className="adm-topbar">
@@ -82,11 +373,11 @@ export default function StudentsPage() {
           <h1>Students</h1>
         </div>
         <div className="right">
-          <button className="ss-btn ss-btn-primary">
+          <button className="ss-btn ss-btn-primary" type="button" onClick={openModal}>
             <UserPlus className="ss-btn-icon" />
             Add student
           </button>
-          <button className="ss-btn">
+          <button className="ss-btn" type="button">
             <Download className="ss-btn-icon" />
             Export
           </button>
@@ -122,8 +413,8 @@ export default function StudentsPage() {
         <div className="ss-alert is-danger">
           <AlertTriangle />
           <span className="ss-alert-text">
-            <strong>3 students require action</strong> — expiring POS, missing
-            intake docs, or overdue follow-up.
+            <strong>3 students require action</strong> — expiring POS, missing intake docs, or
+            overdue follow-up.
           </span>
           <a className="ss-alert-action" href="#">
             View all alerts →
@@ -214,7 +505,7 @@ export default function StudentsPage() {
                 </tr>
               </thead>
               <tbody>
-                {DATA.map((d) => {
+                {data.map((d) => {
                   const p = PROGRAMS[d.prog];
                   const badge = STATUS_BADGE[d.status];
                   const BadgeIcon = badge.icon;
@@ -291,7 +582,7 @@ export default function StudentsPage() {
             </table>
           </div>
           <div className="tbl-foot">
-            <span className="info">Showing 10 of 47 students</span>
+            <span className="info">Showing {Math.min(data.length, 10)} of {data.length} students</span>
             <span className="info">· Active &amp; Prospective · all programs</span>
             <div className="rpp">
               Rows per page
@@ -319,6 +610,15 @@ export default function StudentsPage() {
           </div>
         </div>
       </div>
+
+      {modalOpen && (
+        <AddStudentModal
+          form={form}
+          setForm={setForm}
+          onClose={closeModal}
+          onSubmit={handleSubmit}
+        />
+      )}
     </div>
   );
 }

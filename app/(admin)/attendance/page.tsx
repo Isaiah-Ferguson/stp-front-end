@@ -4,21 +4,18 @@ import { useMemo, useState } from "react";
 import {
   Users,
   UserX,
-  Clock,
-  FileText,
   CalendarCheck,
   Search,
   Check,
   X,
   Download,
-  Tablet,
   MessageSquare,
   MessageSquareText,
   AlertTriangle,
   type LucideIcon,
 } from "lucide-react";
 
-type StatusKey = "present" | "absent" | "late" | "excused";
+type StatusKey = "present" | "absent";
 type Program = "mjc" | "pathways" | "manteca";
 
 const PROG_LABEL: Record<Program, string> = {
@@ -30,8 +27,6 @@ const PROG_LABEL: Record<Program, string> = {
 const ATT_OPTS: { key: StatusKey; icon: LucideIcon; label: string }[] = [
   { key: "present", icon: Check, label: "Present" },
   { key: "absent", icon: X, label: "Absent" },
-  { key: "late", icon: Clock, label: "Late" },
-  { key: "excused", icon: FileText, label: "Excused" },
 ];
 
 type Student = {
@@ -47,11 +42,11 @@ type Student = {
 
 const INITIAL: Student[] = [
   { init: "KM", nm: "Kezia Morales", role: "admin", program: "mjc", group: "A", allergy: true, status: "present", note: false },
-  { init: "MT", nm: "Marcus T.", role: "teacher", program: "mjc", group: "A", allergy: false, status: "late", note: true },
+  { init: "MT", nm: "Marcus T.", role: "teacher", program: "mjc", group: "A", allergy: false, status: null, note: true },
   { init: "SR", nm: "Sofia Reyes", role: "coordinator", program: "mjc", group: "A", allergy: false, status: "present", note: false },
   { init: "BL", nm: "Bianca Lopez", role: "teacher", program: "pathways", group: "B", allergy: false, status: "absent", note: false },
   { init: "EH", nm: "Eli Hart", role: "admin", program: "mjc", group: "A", allergy: false, status: "present", note: false },
-  { init: "DW", nm: "Dana Wells", role: "coordinator", program: "pathways", group: "B", allergy: false, status: "excused", note: true },
+  { init: "DW", nm: "Dana Wells", role: "coordinator", program: "pathways", group: "B", allergy: false, status: null, note: true },
   { init: "AT", nm: "Aaron Torres", role: "admin", program: "mjc", group: "A", allergy: false, status: "present", note: false },
   { init: "CM", nm: "Carlos Mesa", role: "teacher", program: "manteca", group: "C", allergy: false, status: "present", note: false },
   { init: "NR", nm: "Nina Ruiz", role: "coordinator", program: "mjc", group: "A", allergy: false, status: "present", note: false },
@@ -60,7 +55,7 @@ const INITIAL: Student[] = [
   { init: "LW", nm: "Leo Walsh", role: "coordinator", program: "mjc", group: "A", allergy: false, status: "absent", note: false },
 ];
 
-const FILTERS = ["all", "present", "absent", "late", "excused", "unmarked"] as const;
+const FILTERS = ["all", "present", "absent", "unmarked"] as const;
 type Filter = (typeof FILTERS)[number];
 
 export default function AttendancePage() {
@@ -71,7 +66,7 @@ export default function AttendancePage() {
 
   const total = students.length;
   const counts = useMemo(() => {
-    const c: Record<StatusKey, number> = { present: 0, absent: 0, late: 0, excused: 0 };
+    const c: Record<StatusKey, number> = { present: 0, absent: 0 };
     students.forEach((s) => {
       if (s.status) c[s.status] += 1;
     });
@@ -154,22 +149,6 @@ export default function AttendancePage() {
             <span className="delta danger">
               <UserX />
               {pct(counts.absent)} of roster
-            </span>
-          </div>
-          <div className="adm-stat">
-            <span className="label">Late</span>
-            <span className="num" style={{ color: "var(--warning)" }}>{counts.late}</span>
-            <span className="delta warn">
-              <Clock />
-              {pct(counts.late)} of roster
-            </span>
-          </div>
-          <div className="adm-stat">
-            <span className="label">Excused</span>
-            <span className="num">{counts.excused}</span>
-            <span className="delta muted">
-              <FileText />
-              {pct(counts.excused)} of roster
             </span>
           </div>
         </div>
@@ -337,8 +316,6 @@ export default function AttendancePage() {
             <div>
               <div className="ss-label" style={{ marginBottom: 8 }}>Note type</div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                <span className="ss-notetag highlight">Highlight</span>
-                <span className="ss-notetag progress">Progress</span>
                 <span className="ss-notetag observation">Observation</span>
                 <span className="ss-notetag concern">Concern</span>
               </div>

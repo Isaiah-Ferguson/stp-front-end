@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Star, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
 const DEMO_ROLES = [
   { init: "JD", cls: "admin",       role: "Admin",       desc: "Full access — all programs" },
@@ -19,7 +19,7 @@ export default function LoginPage() {
         }
         .login-brand {
           flex: 1;
-          background: var(--fg);
+          background: var(--brand-navy);
           color: #fff;
           padding: 48px 52px;
           display: flex;
@@ -79,18 +79,21 @@ export default function LoginPage() {
         {/* ---- Brand panel (desktop left) ---- */}
         <div className="login-brand">
           <div>
-            {/* Logo row */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 56 }}>
-              <span style={{
-                width: 28, height: 28, borderRadius: 6,
-                background: "var(--productions)",
-                display: "inline-flex", alignItems: "center", justifyContent: "center",
+            {/* Logo */}
+            <div style={{ marginBottom: 48 }}>
+              <div style={{
+                background: "#fff",
+                borderRadius: 12,
+                padding: "14px 18px",
+                display: "inline-block",
               }}>
-                <Star style={{ width: 16, height: 16, color: "#fff" }} />
-              </span>
-              <span style={{ fontSize: 15, fontWeight: 500, letterSpacing: "-0.01em" }}>
-                Shining Stars CRM
-              </span>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/logo.png"
+                  alt="The Shining Stars Project"
+                  style={{ height: 96, width: "auto", display: "block" }}
+                />
+              </div>
             </div>
 
             {/* Headline */}
@@ -125,19 +128,13 @@ export default function LoginPage() {
           <div className="login-form-inner">
 
             {/* Mobile-only brand mark */}
-            <div className="login-mobile-brand" style={{
-              alignItems: "center", gap: 8, marginBottom: 32,
-            }}>
-              <span style={{
-                width: 26, height: 26, borderRadius: 6,
-                background: "var(--productions)",
-                display: "inline-flex", alignItems: "center", justifyContent: "center",
-              }}>
-                <Star style={{ width: 14, height: 14, color: "#fff" }} />
-              </span>
-              <span style={{ fontSize: 14, fontWeight: 500, color: "var(--fg)" }}>
-                Shining Stars CRM
-              </span>
+            <div className="login-mobile-brand" style={{ marginBottom: 32 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/logo.png"
+                alt="The Shining Stars Project"
+                style={{ height: 52, width: "auto", mixBlendMode: "multiply" }}
+              />
             </div>
 
             {/* Heading */}

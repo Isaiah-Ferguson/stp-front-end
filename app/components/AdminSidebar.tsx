@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Star,
   Menu,
   X,
   LayoutDashboard,
@@ -13,7 +12,7 @@ import {
   Calendar,
   UserCheck,
   CheckSquare,
-  Folder,
+  BookOpen,
   BarChart3,
   Settings,
   type LucideIcon,
@@ -47,9 +46,9 @@ const SECTIONS: NavSection[] = [
   {
     label: "Programs",
     items: [
-      { href: "/students?program=mjc", label: "MJC", dot: "mjc" },
-      { href: "/students?program=pathways", label: "Pathways", dot: "pathways" },
-      { href: "/students?program=manteca", label: "Manteca PT", dot: "manteca" },
+      { href: "/programs/mjc", label: "MJC", dot: "mjc" },
+      { href: "/programs/pathways", label: "Pathways", dot: "pathways" },
+      { href: "/programs/manteca", label: "Manteca PT", dot: "manteca" },
     ],
   },
   {
@@ -62,7 +61,7 @@ const SECTIONS: NavSection[] = [
         badge: { text: "2", tone: "is-warning" },
       },
       { href: "/tasks", label: "Tasks", icon: CheckSquare },
-      { href: "/documents", label: "Documents", icon: Folder },
+      { href: "/documents", label: "Scripts", icon: BookOpen },
     ],
   },
   {
@@ -108,14 +107,22 @@ export default function AdminSidebar() {
         aria-hidden="true"
       />
       <nav className={`ss-sidebar adm-sidebar${open ? " is-open" : ""}`}>
-      <div className="adm-logo">
-        <div className="brand">
-          <span className="star">
-            <Star />
-          </span>
-          Shining Stars
+      <div className="adm-logo" style={{ alignItems: "center", padding: "12px 12px 8px" }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logo.png"
+          alt="The Shining Stars Project"
+          style={{ height: 80, width: "auto", display: "block", mixBlendMode: "multiply" }}
+        />
+        <div style={{
+          fontSize: "var(--fs-label)",
+          letterSpacing: "var(--ls-label)",
+          textTransform: "uppercase",
+          color: "var(--fg-secondary)",
+          marginTop: 6,
+        }}>
+          Admin portal
         </div>
-        <div className="sub">Admin portal</div>
       </div>
 
       <div className="adm-nav">
