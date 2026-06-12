@@ -13,6 +13,53 @@ export type ScriptType = "Musical" | "Play" | "Scene" | "Skit";
 export type ScriptStatus = "Active" | "Draft" | "Archived";
 export type ProjectType = "Production" | "Staff" | "Admin" | "Event";
 export type AlertSeverity = "Danger" | "Warning" | "Info";
+export type UserRole = "Staff" | "Admin";
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+
+export interface LoginDto {
+  email: string;
+  password: string;
+}
+
+export interface RegisterUserDto {
+  email: string;
+  fullName: string;
+  password: string;
+  role: UserRole;
+  staffMemberId?: Guid;
+}
+
+export interface UserDto {
+  id: Guid;
+  email: string;
+  fullName: string;
+  role: UserRole;
+  isActive: boolean;
+  staffMemberId: Guid | null;
+}
+
+export interface UpdateUserDto {
+  fullName?: string;
+  role?: UserRole;
+  isActive?: boolean;
+  staffMemberId?: Guid;
+}
+
+export interface ResetPasswordDto {
+  newPassword: string;
+}
+
+export interface ChangePasswordDto {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface AuthResultDto {
+  token: string;
+  expiresAt: string;
+  user: UserDto;
+}
 
 // ── Programs ──────────────────────────────────────────────────────────────────
 
@@ -158,6 +205,23 @@ export interface AttendanceNoteDto {
 
 export interface UpdateAttendanceDto {
   status: AttendanceStatus;
+}
+
+export interface AttendanceRosterEntryDto {
+  recordId: Guid;
+  participantId: Guid;
+  fullName: string;
+  initials: string;
+  programId: Guid;
+  programSlug: string;
+  programName: string;
+  status: AttendanceStatus;
+  notes: AttendanceNoteDto[];
+}
+
+export interface CreateAttendanceNoteDto {
+  content: string;
+  noteType: "observation" | "concern";
 }
 
 // ── Projects & Tasks ──────────────────────────────────────────────────────────

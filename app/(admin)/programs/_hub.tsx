@@ -1,31 +1,33 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import {
   Users, CalendarCheck, AlertCircle, AlertTriangle,
   Plus, Minus, Check, Clock,
   UserCheck, CheckCircle2,
 } from "lucide-react";
+import { programsApi } from "@/lib/api/programs";
 import type { ProgramDetailDto } from "@/lib/types/api";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type ProgramSlug = string;
 
-// ── Fetch helper ──────────────────────────────────────────────────────────────
-
-async function fetchProgramDetail(slug: string): Promise<ProgramDetailDto | null> {
-  try {
-    const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5208";
-    const res = await fetch(`${base}/api/programs/${slug}/detail`, { cache: "no-store" });
-    if (!res.ok) return null;
-    return res.json() as Promise<ProgramDetailDto>;
-  } catch {
-    return null;
-  }
-}
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export default async function ProgramHub({ slug }: { slug: ProgramSlug }) {
-  const detail = await fetchProgramDetail(slug);
+export default function ProgramHub({ slug }: { slug: ProgramSlug }) {
+  const [detail, setDetail] = useState<ProgramDetailDto | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    programsApi.getDetail(slug)
+      .then((d) => { if (active) setDetail(d); })
+      .catch(() => { if (active) setDetail(null); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [slug]);
 
   const colorVar  = `var(--${slug})`;
   const fillVar   = `var(--${slug}-fill)`;
@@ -52,7 +54,7 @@ export default async function ProgramHub({ slug }: { slug: ProgramSlug }) {
             <span className={`ss-dot ${slug}`} style={{ marginRight: 8 }} />
             {label}
           </h1>
-          <span className="date">Friday, June 12, 2026</span>
+          <span className="date">{new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</span>
         </div>
         <div className="right">
           <button className="ss-btn ss-btn-primary" type="button">
@@ -238,7 +240,7 @@ export default async function ProgramHub({ slug }: { slug: ProgramSlug }) {
           </div>
         </div>
 
-        {!detail && (
+        {!loading && !detail && (
           <div className="ss-alert" style={{ marginTop: "var(--space-4)" }}>
             <AlertCircle />
             <span className="ss-alert-text">

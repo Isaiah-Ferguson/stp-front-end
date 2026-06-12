@@ -241,7 +241,7 @@ export default function ProgramsPage() {
         <div className="adm-topbar">
           <div className="titles">
             <h1>Programs</h1>
-            <span className="date">Friday, June 12, 2026</span>
+            <span className="date">{new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</span>
           </div>
           <div className="right">
             <button className="ss-btn ss-btn-primary" type="button" onClick={() => setModalOpen(true)}>

@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Plus,
@@ -5,16 +8,12 @@ import {
   Users,
   AlertTriangle,
   AlertCircle,
-  Info,
   Calendar,
   GitBranch,
-  Clock,
-  CheckCircle2,
-  Flag,
   CheckSquare,
-  Check,
   UserCheck,
   BarChart3,
+  Check,
 } from "lucide-react";
 import AlertList from "../components/AlertList";
 import PipelineList from "../components/PipelineList";
@@ -23,170 +22,329 @@ import StaffList from "../components/StaffList";
 import Widget from "../components/Widget";
 import StatCard from "../components/StatCard";
 import BarChart from "../components/BarChart";
+import { participantsApi } from "@/lib/api/participants";
+import { attendanceApi } from "@/lib/api/attendance";
+import { tasksApi } from "@/lib/api/tasks";
+import { staffApi } from "@/lib/api/staff";
+import { programsApi } from "@/lib/api/programs";
+import { calendarApi } from "@/lib/api/calendar";
+import type {
+  ParticipantSummaryDto,
+  AttendanceRosterEntryDto,
+  ProjectDto,
+  StaffSummaryDto,
+  ProgramSummaryDto,
+  CalendarEventDto,
+  ParticipantStatus,
+} from "@/lib/types/api";
 
-/**
- * Admin Dashboard — full overview (stats, alerts, events, pipeline,
- * tasks, onboarding, attendance chart). Data is placeholder until APIs exist.
- */
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+const parseDate = (s: string) => new Date(s + "T12:00:00");
+const shortDate = (s: string) => parseDate(s).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+const STATUS_BADGE: Record<ParticipantStatus, { type: string; text: string }> = {
+  Active:      { type: "active",      text: "Active" },
+  Prospective: { type: "prospective", text: "Prospective" },
+  Attention:   { type: "attention",   text: "Needs attention" },
+  Former:      { type: "info",        text: "Former" },
+};
+const STATUS_ORDER: Record<ParticipantStatus, number> = { Attention: 0, Prospective: 1, Active: 2, Former: 3 };
+
+function EmptyRow({ text }: { text: string }) {
+  return <div style={{ padding: "18px 0", textAlign: "center", fontSize: 13, color: "var(--fg-tertiary)" }}>{text}</div>;
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
 export default function DashboardPage() {
+  const [loading, setLoading] = useState(true);
+  const [participants, setParticipants] = useState<ParticipantSummaryDto[]>([]);
+  const [roster, setRoster] = useState<AttendanceRosterEntryDto[]>([]);
+  const [projects, setProjects] = useState<ProjectDto[]>([]);
+  const [staff, setStaff] = useState<StaffSummaryDto[]>([]);
+  const [programs, setPrograms] = useState<ProgramSummaryDto[]>([]);
+  const [events, setEvents] = useState<CalendarEventDto[]>([]);
+
+  useEffect(() => {
+    const now = new Date();
+    const m = now.getMonth() + 1, y = now.getFullYear();
+    const nm = m === 12 ? 1 : m + 1, ny = m === 12 ? y + 1 : y;
+
+    Promise.all([
+      participantsApi.getAll().catch(() => [] as ParticipantSummaryDto[]),
+      attendanceApi.getTodayRoster().catch(() => [] as AttendanceRosterEntryDto[]),
+      tasksApi.getProjects().catch(() => [] as ProjectDto[]),
+      staffApi.getAll().catch(() => [] as StaffSummaryDto[]),
+      programsApi.getAll().catch(() => [] as ProgramSummaryDto[]),
+      calendarApi.getEvents(m, y).catch(() => [] as CalendarEventDto[]),
+      calendarApi.getEvents(nm, ny).catch(() => [] as CalendarEventDto[]),
+    ])
+      .then(([p, r, proj, s, prog, ev1, ev2]) => {
+        setParticipants(p);
+        setRoster(r);
+        setProjects(proj);
+        setStaff(s);
+        setPrograms(prog);
+        setEvents([...ev1, ...ev2]);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const progSlugById = useMemo(
+    () => Object.fromEntries(programs.map((p) => [p.id, p.slug])),
+    [programs]
+  );
+
+  // ── Stats ────────────────────────────────────────────────────────────────────
+  const activeCount = participants.filter((p) => p.status === "Active").length;
+  const newThisMonth = useMemo(() => {
+    const now = new Date();
+    return participants.filter((p) => {
+      const d = parseDate(p.startDate);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    }).length;
+  }, [participants]);
+
+  const presentToday = roster.filter((r) => r.status === "Present").length;
+  const rosterTotal = roster.length;
+  const attPct = rosterTotal ? Math.round((presentToday / rosterTotal) * 100) : 0;
+
+  const allTasks = useMemo(
+    () => projects.flatMap((p) => p.tasks.map((t) => ({ t, project: p.title }))),
+    [projects]
+  );
+  const openTasks = allTasks.filter((x) => x.t.taskStatus !== "Done");
+  const overdueCount = allTasks.filter((x) => x.t.isOverdue || x.t.taskStatus === "Overdue").length;
+
+  const docAlertParticipants = participants.filter((p) => p.hasDocAlerts);
+
+  // ── Alerts ────────────────────────────────────────────────────────────────────
+  const alertItems = useMemo(() => {
+    type AlertSev = "danger" | "warning" | "info";
+    const items: { severity: AlertSev; txt: string; sub: string; act: string }[] =
+      docAlertParticipants.slice(0, 5).map((p) => ({
+        severity: "danger",
+        txt: `${p.fullName} — document alert`,
+        sub: `${p.programName} · review documents`,
+        act: "Review",
+      }));
+    const prospective = participants.filter((p) => p.status === "Prospective");
+    if (prospective.length && items.length < 5) {
+      items.push({
+        severity: "info",
+        txt: `${prospective.length} prospective participant${prospective.length > 1 ? "s" : ""} awaiting follow-up`,
+        sub: "Assign a coordinator",
+        act: "Assign",
+      });
+    }
+    return items;
+  }, [docAlertParticipants, participants]);
+
+  // ── Upcoming events ────────────────────────────────────────────────────────────
+  const upcoming = useMemo(() => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    return events
+      .filter((e) => e.date >= todayStr)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(0, 5)
+      .map((e) => {
+        const d = parseDate(e.date);
+        const slug = e.programId ? progSlugById[e.programId] : undefined;
+        return {
+          key: e.id,
+          d: String(d.getDate()).padStart(2, "0"),
+          month: d.toLocaleDateString("en-US", { month: "short" }),
+          title: e.title,
+          slug,
+          meta: [e.programName, e.timeRange, e.location].filter(Boolean).join(" · "),
+        };
+      });
+  }, [events, progSlugById]);
+
+  // ── Pipeline ──────────────────────────────────────────────────────────────────
+  const pipeline = useMemo(
+    () =>
+      participants
+        .slice()
+        .sort((a, b) => (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9))
+        .slice(0, 5)
+        .map((p) => ({
+          initials: p.initials,
+          name: p.fullName,
+          sub: p.programName,
+          badge: STATUS_BADGE[p.status],
+        })),
+    [participants]
+  );
+
+  // ── Open tasks list ─────────────────────────────────────────────────────────────
+  const taskItems = useMemo(
+    () =>
+      openTasks
+        .slice()
+        .sort((a, b) => (b.t.isOverdue ? 1 : 0) - (a.t.isOverdue ? 1 : 0))
+        .slice(0, 4)
+        .map((x) => ({
+          nm: x.t.name,
+          sub: x.project,
+          due: x.t.isOverdue
+            ? "Overdue"
+            : x.t.dueDate
+              ? `Due ${shortDate(x.t.dueDate)}`
+              : x.t.taskStatus,
+          overdue: x.t.isOverdue || x.t.taskStatus === "Overdue",
+        })),
+    [openTasks]
+  );
+
+  // ── Staff onboarding ─────────────────────────────────────────────────────────────
+  const staffItems = useMemo(
+    () =>
+      staff
+        .slice()
+        .sort((a, b) => a.onboardingProgressPct - b.onboardingProgressPct)
+        .slice(0, 5)
+        .map((s) => ({
+          nm: s.fullName,
+          pct: s.onboardingProgressPct,
+          fill: s.onboardingProgressPct === 100 ? "success" : s.onboardingProgressPct >= 50 ? "warning" : "danger",
+        })),
+    [staff]
+  );
+
+  // ── Attendance today by program (real data; replaces the mock weekly chart) ──────
+  const chartColumns = useMemo(() => {
+    const by = new Map<string, { name: string; present: number; total: number }>();
+    roster.forEach((r) => {
+      const cur = by.get(r.programSlug) ?? { name: r.programName, present: 0, total: 0 };
+      cur.total += 1;
+      if (r.status === "Present") cur.present += 1;
+      by.set(r.programSlug, cur);
+    });
+    return Array.from(by.entries()).map(([slug, v]) => ({
+      dotClass: slug,
+      label: v.name,
+      bars: [{ pct: v.total ? Math.round((v.present / v.total) * 100) : 0, day: "Today" }],
+    }));
+  }, [roster]);
+
+  const dash = (v: React.ReactNode) => (loading ? "…" : v);
+
   return (
     <div className="adm-main">
       <a href="#main-content" className="skip-link">Skip to main content</a>
       <div className="adm-topbar">
         <div className="titles">
           <h1>Dashboard</h1>
-          <span className="date">Thursday, June 5, 2026</span>
+          <span className="date">{new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</span>
         </div>
         <div className="right">
           <div className="row tight flex items-center gap-1.5">
-            <span className="ss-chip ss-chip--static">
-              <span className="ss-dot mjc" />
-              MJC
-            </span>
-            <span className="ss-chip ss-chip--static">
-              <span className="ss-dot pathways" />
-              Pathways
-            </span>
-            <span className="ss-chip ss-chip--static">
-              <span className="ss-dot manteca" />
-              Manteca PT
-            </span>
-            <span className="ss-chip ss-chip--static">
-              <span className="ss-dot productions" />
-              Productions
-            </span>
+            {programs.map((p) => (
+              <span className="ss-chip ss-chip--static" key={p.id}>
+                <span className={`ss-dot ${p.slug}`} />
+                {p.name}
+              </span>
+            ))}
           </div>
-          <button className="ss-btn ss-btn-primary">
+          <Link href="/students" className="ss-btn ss-btn-primary">
             <Plus className="ss-btn-icon" />
             Add participant
-          </button>
+          </Link>
         </div>
       </div>
 
-      <div className="adm-content">
+      <div className="adm-content" id="main-content">
         {/* stat grid */}
         <div className="adm-statgrid">
-          <StatCard label="Active Participants" num={48} delta={<><TrendingUp /> +3 this month</>} deltaClass="up" />
-          <StatCard label="Attendance Today" num="82%" delta={<><Users /> 39 of 48 present</>} deltaClass="muted" />
-          <StatCard label="Open Tasks" num={12} delta={<><AlertTriangle />3 overdue</>} deltaClass="warn" className="is-warn" />
-          <StatCard label="Expiring Docs" num={5} delta={<><AlertCircle /> Within 30 days</>} deltaClass="danger" className="is-danger" />
+          <StatCard
+            label="Active Participants"
+            num={dash(activeCount)}
+            delta={newThisMonth > 0 ? <><TrendingUp /> +{newThisMonth} this month</> : <><Users /> {participants.length} total</>}
+            deltaClass={newThisMonth > 0 ? "up" : "muted"}
+          />
+          <StatCard
+            label="Attendance Today"
+            num={dash(rosterTotal ? `${attPct}%` : "—")}
+            delta={rosterTotal ? <><Users /> {presentToday} of {rosterTotal} present</> : <><Users /> No session today</>}
+            deltaClass="muted"
+          />
+          <StatCard
+            label="Open Tasks"
+            num={dash(openTasks.length)}
+            delta={overdueCount > 0 ? <><AlertTriangle />{overdueCount} overdue</> : <><Check /> On track</>}
+            deltaClass={overdueCount > 0 ? "warn" : "muted"}
+            className={overdueCount > 0 ? "is-warn" : undefined}
+          />
+          <StatCard
+            label="Document Alerts"
+            num={dash(docAlertParticipants.length)}
+            delta={docAlertParticipants.length > 0 ? <><AlertCircle /> Need attention</> : <><Check /> All clear</>}
+            deltaClass={docAlertParticipants.length > 0 ? "danger" : "muted"}
+            className={docAlertParticipants.length > 0 ? "is-danger" : undefined}
+          />
         </div>
 
         {/* row 2: alerts + events */}
         <div className="adm-row2">
           <Widget id="alerts-heading" title="Alerts" icon={<AlertTriangle className="ico ico--warning" />} linkText="View all">
-            <AlertList
-              items={[
-                { severity: "danger", txt: "Marcus T. — POS expires in 6 days", sub: "Pathways · renewal needed", act: "Renew" },
-                { severity: "danger", txt: "Sofia R. — intake documents missing", sub: "MJC · blocking enrollment", act: "Upload" },
-                { severity: "warning", txt: "Rachel M. — CPR certification expires Jul 1", sub: "Staff · schedule recertification", act: "Schedule" },
-                { severity: "warning", txt: "Joss K. — TB clearance due", sub: "Manteca PT · request form", act: "Request" },
-                { severity: "info", txt: "2 prospective participants — no follow-up", sub: "MJC, Pathways · assign coordinator", act: "Assign" },
-              ]}
-            />
+            {loading ? <EmptyRow text="Loading…" /> : alertItems.length ? <AlertList items={alertItems} /> : <EmptyRow text="No open alerts" />}
           </Widget>
 
           <Widget id="events-heading" title="Upcoming Events" icon={<Calendar className="ico ico--primary" />} linkText="Calendar">
-            <div>
-              {[
-                {
-                  d: "06",
-                  title: "Spring Showcase Rehearsal",
-                  program: "productions",
-                  meta: "Productions · 10:00 AM · Main Stage",
-                },
-                {
-                  d: "09",
-                  title: "New Student Orientation",
-                  program: "mjc",
-                  meta: "MJC · 1:00 PM · Room B",
-                },
-                {
-                  d: "11",
-                  title: "Staff CPR Recertification",
-                  program: "staff",
-                  meta: "Staff · 9:00 AM · Conf. Room",
-                },
-                {
-                  d: "13",
-                  title: "Family Open House",
-                  program: "pathways",
-                  meta: "Pathways · 4:00 PM · Studio 2",
-                },
-              ].map((e) => (
-                <div className="event-row" key={e.title}>
-                  <div className="event-date">
-                    <span className="d">{e.d}</span>
-                    <span className="m">Jun</span>
-                  </div>
-                  <div className="body">
-                    <div className="title">{e.title}</div>
-                    <div className="meta">
-                      <span className={`ss-dot ${e.program}`} />
-                      {e.meta}
+            {loading ? (
+              <EmptyRow text="Loading…" />
+            ) : upcoming.length ? (
+              <div>
+                {upcoming.map((e) => (
+                  <div className="event-row" key={e.key}>
+                    <div className="event-date">
+                      <span className="d">{e.d}</span>
+                      <span className="m">{e.month}</span>
+                    </div>
+                    <div className="body">
+                      <div className="title">{e.title}</div>
+                      <div className="meta">
+                        {e.slug && <span className={`ss-dot ${e.slug}`} />}
+                        {e.meta}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyRow text="No upcoming events" />
+            )}
           </Widget>
         </div>
 
         {/* row 3: pipeline + tasks + onboarding */}
         <div className="adm-row3">
-          <Widget id="pipeline-heading" title="Student Pipeline" icon={<GitBranch className="ico ico--primary" />}>
-            <PipelineList
-              items={[
-                { initials: "AT", name: "Aaron T.", sub: "MJC", badge: { type: "prospective", text: "Prospective" } },
-                { initials: "BL", name: "Bianca L.", sub: "Pathways", badge: { type: "active", text: "Active" } },
-                { initials: "CM", name: "Carlos M.", sub: "Manteca PT", badge: { type: "attention", text: "Docs missing" } },
-                { initials: "DW", name: "Dana W.", sub: "Pathways", badge: { type: "info", text: "6-week mark" } },
-                { initials: "EH", name: "Eli H.", sub: "MJC", badge: { type: "active", text: "Active" } },
-              ]}
-            />
+          <Widget id="pipeline-heading" title="Participant Pipeline" icon={<GitBranch className="ico ico--primary" />}>
+            {loading ? <EmptyRow text="Loading…" /> : pipeline.length ? <PipelineList items={pipeline} /> : <EmptyRow text="No participants yet" />}
           </Widget>
 
           <Widget id="tasks-heading" title="Open Tasks" icon={<CheckSquare className="ico ico--primary" />}>
-            <TasksList
-              items={[
-                { nm: "Submit POS renewal — Marcus T.", sub: "Pathways", due: "2 days overdue", overdue: true },
-                { nm: "Collect intake docs — Sofia R.", sub: "MJC", due: "Overdue", overdue: true },
-                { nm: "Schedule June assessment", sub: "Manteca PT", due: "Due Jun 9", overdue: false },
-                { nm: "Confirm showcase volunteers", sub: "Productions", due: "Due Jun 12", overdue: false },
-              ]}
-            />
+            {loading ? <EmptyRow text="Loading…" /> : taskItems.length ? <TasksList items={taskItems} /> : <EmptyRow text="No open tasks" />}
           </Widget>
 
           <Widget id="onboard-heading" title="Staff Onboarding" icon={<UserCheck className="ico ico--primary" />}>
-            <StaffList
-              items={[
-                { nm: "Rachel M.", pct: 100, fill: "success" },
-                { nm: "Devon P.", pct: 80, fill: "warning" },
-                { nm: "Nina S.", pct: 60, fill: "warning" },
-                { nm: "Omar B.", pct: 40, fill: "warning" },
-                { nm: "Tariq J.", pct: 15, fill: "danger" },
-              ]}
-            />
+            {loading ? <EmptyRow text="Loading…" /> : staffItems.length ? <StaffList items={staffItems} /> : <EmptyRow text="No staff yet" />}
           </Widget>
         </div>
 
-        {/* attendance chart */}
-        <Widget id="attendance-heading" title="Attendance This Week" icon={<BarChart3 className="ico ico--primary" />} bodyClass="widget-body--padded">
-              <BarChart
-                columns={[
-                  { dotClass: "mjc", label: "MJC", bars: [ { pct: 88, day: "Mon" }, { pct: 92, day: "Wed" }, { pct: 79, day: "Fri" } ] },
-                  { dotClass: "pathways", label: "Pathways", bars: [ { pct: 95, day: "Tue" }, { pct: 90, day: "Thu" } ] },
-                  { dotClass: "manteca", label: "Manteca PT", bars: [ { pct: 74, day: "Mon" }, { pct: 81, day: "Wed" }, { pct: 85, day: "Fri" } ] },
-                ]}
-              />
+        {/* attendance today by program */}
+        <Widget id="attendance-heading" title="Attendance Today by Program" icon={<BarChart3 className="ico ico--primary" />} bodyClass="widget-body--padded">
+          {loading ? (
+            <EmptyRow text="Loading…" />
+          ) : chartColumns.length ? (
+            <BarChart columns={chartColumns} />
+          ) : (
+            <EmptyRow text="No attendance recorded today" />
+          )}
         </Widget>
-        </div>
-
-        <p className="ss-meta">
-          <Link href="/" className="text-primary">
-            ← Back to home
-          </Link>
-        </p>
       </div>
+    </div>
   );
 }

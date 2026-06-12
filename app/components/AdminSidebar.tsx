@@ -17,8 +17,19 @@ import {
   BookOpen,
   BarChart3,
   Settings,
+  LogOut,
+  UserCog,
   type LucideIcon,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth/AuthProvider";
+
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
 type NavItem = {
   href: string;
@@ -75,7 +86,28 @@ const SECTIONS: NavSection[] = [
 
 export default function AdminSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, logout } = useAuth();
   const [open, setOpen] = useState(false);
+
+  function handleLogout() {
+    logout();
+    router.replace("/");
+  }
+
+  // Admins get a Users management entry in the Admin section.
+  const sections: NavSection[] = SECTIONS.map((section) => {
+    if (section.label === "Admin" && user?.role === "Admin") {
+      return {
+        ...section,
+        items: [
+          { href: "/users", label: "Users", icon: UserCog },
+          ...section.items,
+        ],
+      };
+    }
+    return section;
+  });
 
   // Close the mobile drawer whenever the route changes.
   useEffect(() => {
@@ -127,7 +159,7 @@ export default function AdminSidebar() {
       </div>
 
       <div className="adm-nav">
-        {SECTIONS.map((section) => (
+        {sections.map((section) => (
           <div className="ss-nav-section" key={section.label}>
             <div className="ss-nav-section-label">{section.label}</div>
             {section.items.map((item) => {
@@ -158,11 +190,32 @@ export default function AdminSidebar() {
       </div>
 
       <div className="adm-foot">
-        <span className="ss-avatar admin sm">JD</span>
-        <div className="who">
-          <span className="nm">Jamie D.</span>
-          <span className="rl">Admin</span>
-        </div>
+        <Link
+          href="/account"
+          title="Account settings"
+          style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0, textDecoration: "none", color: "inherit" }}
+        >
+          <span className={`ss-avatar ${user?.role === "Admin" ? "admin" : "teacher"} sm`}>
+            {user ? initialsOf(user.fullName) : "?"}
+          </span>
+          <div className="who" style={{ minWidth: 0 }}>
+            <span className="nm">{user?.fullName ?? "—"}</span>
+            <span className="rl">{user?.role ?? ""}</span>
+          </div>
+        </Link>
+        <button
+          type="button"
+          onClick={handleLogout}
+          title="Sign out"
+          aria-label="Sign out"
+          style={{
+            marginLeft: "auto", background: "none", border: "none", cursor: "pointer",
+            color: "var(--fg-tertiary)", padding: 6, borderRadius: "var(--r-sm)",
+            display: "inline-flex", alignItems: "center",
+          }}
+        >
+          <LogOut style={{ width: 16, height: 16 }} />
+        </button>
       </div>
       </nav>
     </>

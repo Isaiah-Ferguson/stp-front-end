@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   UserPlus,
   Download,
@@ -117,12 +118,14 @@ function AddStudentModal({
   setForm,
   onClose,
   onSubmit,
+  error,
 }: {
   programs: ProgramSummaryDto[];
   form: AddStudentForm;
   setForm: React.Dispatch<React.SetStateAction<AddStudentForm>>;
   onClose: () => void;
   onSubmit: () => void;
+  error?: string | null;
 }) {
   const canSubmit = form.nm.trim().length > 0 && form.programId !== "";
 
@@ -193,6 +196,12 @@ function AddStudentModal({
           </div>
         </div>
 
+        {error && (
+          <div style={{ margin: "0 var(--space-4)", padding: "8px 12px", borderRadius: "var(--r-md)", background: "var(--danger-fill, #fce8e8)", color: "var(--danger)", fontSize: 12, display: "flex", alignItems: "flex-start", gap: 6 }}>
+            <AlertCircle style={{ width: 13, height: 13, flexShrink: 0, marginTop: 1 }} />
+            {error}
+          </div>
+        )}
         <div style={{ padding: "var(--space-3) var(--space-4)", borderTop: "0.5px solid var(--border)", display: "flex", gap: 8, justifyContent: "flex-end", flexShrink: 0 }}>
           <button className="ss-btn" type="button" onClick={onClose}>Cancel</button>
           <button className="ss-btn ss-btn-primary" type="button" onClick={onSubmit} disabled={!canSubmit}>
@@ -213,6 +222,7 @@ export default function StudentsPage() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<AddStudentForm>(EMPTY_FORM);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([participantsApi.getAll(), programsApi.getAll()])
@@ -237,11 +247,10 @@ export default function StudentsPage() {
 
   const alertStudentCount = data.filter((d) => d.alerts.length > 0).length;
 
-  function openModal() { setForm(EMPTY_FORM); setModalOpen(true); }
-  function closeModal() { setModalOpen(false); }
+  function openModal() { setForm(EMPTY_FORM); setSubmitError(null); setModalOpen(true); }
+  function closeModal() { setSubmitError(null); setModalOpen(false); }
 
   async function handleSubmit() {
-    const prog = programs.find((p) => p.id === form.programId);
     const statusMap: Record<string, ParticipantStatus> = { active: "Active", prospective: "Prospective" };
     const dto: CreateParticipantDto = {
       fullName: form.nm.trim(),
@@ -255,23 +264,10 @@ export default function StudentsPage() {
     try {
       const created = await participantsApi.create(dto);
       setData((prev) => [dtoToStudent(created), ...prev]);
+      closeModal();
     } catch {
-      setData((prev) => [{
-        id: "temp-" + Math.random().toString(36).slice(2),
-        init: toInitials(form.nm),
-        nm: form.nm.trim(),
-        dob: form.birthYear ? `b. ${form.birthYear}` : "—",
-        prog: prog?.slug ?? "",
-        progName: prog?.name ?? "—",
-        status: form.status,
-        alerts: [],
-        att: 0,
-        exp: { kind: "amber", label: "Pending" },
-        sc: form.sc.trim() || "—",
-        start: currentMonthYear(),
-      }, ...prev]);
+      setSubmitError("Could not save participant — check that the backend is running and try again.");
     }
-    closeModal();
   }
 
   return (
@@ -398,7 +394,7 @@ export default function StudentsPage() {
                             {d.init}
                           </span>
                           <div>
-                            <div className="nm">{d.nm}</div>
+                            <Link href={`/students/${d.id}`} className="nm" style={{ color: "inherit", textDecoration: "none" }}>{d.nm}</Link>
                             <div className="dob">{d.dob}</div>
                           </div>
                         </div>
@@ -484,6 +480,7 @@ export default function StudentsPage() {
           setForm={setForm}
           onClose={closeModal}
           onSubmit={handleSubmit}
+          error={submitError}
         />
       )}
     </div>
