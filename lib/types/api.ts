@@ -66,6 +66,7 @@ export interface ParticipantSummaryDto {
   status: ParticipantStatus;
   programId: Guid;
   programName: string;
+  programSlug: string;
   attendancePct: number;
   startDate: string;
   hasDocAlerts: boolean;
