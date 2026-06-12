@@ -1,12 +1,5 @@
-import { Users } from "lucide-react";
-import ComingSoon from "../../../components/ComingSoon";
+import ProgramHub from "../_hub";
 
-export default function PathwaysProgramPage() {
-  return (
-    <ComingSoon
-      title="Pathways"
-      Icon={Users}
-      description="The Pathways program page is coming soon."
-    />
-  );
+export default function PathwaysPage() {
+  return <ProgramHub slug="pathways" />;
 }

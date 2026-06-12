@@ -11,6 +11,7 @@ import {
   Users,
   CalendarCheck,
   Calendar,
+  Drama,
   UserCheck,
   CheckSquare,
   BookOpen,
@@ -47,9 +48,7 @@ const SECTIONS: NavSection[] = [
   {
     label: "Programs",
     items: [
-      { href: "/programs/mjc", label: "MJC", dot: "mjc" },
-      { href: "/programs/pathways", label: "Pathways", dot: "pathways" },
-      { href: "/programs/manteca", label: "Manteca PT", dot: "manteca" },
+      { href: "/programs", label: "Programs", icon: Drama },
     ],
   },
   {

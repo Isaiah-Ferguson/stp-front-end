@@ -1,12 +1,5 @@
-import { Users } from "lucide-react";
-import ComingSoon from "../../../components/ComingSoon";
+import ProgramHub from "../_hub";
 
-export default function MantecaProgramPage() {
-  return (
-    <ComingSoon
-      title="Manteca PT"
-      Icon={Users}
-      description="The Manteca PT program page is coming soon."
-    />
-  );
+export default function MantecaPage() {
+  return <ProgramHub slug="manteca" />;
 }
