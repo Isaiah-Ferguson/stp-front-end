@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AlertCircle, ChevronRight, Plus, X } from "lucide-react";
 import { programsApi } from "@/lib/api/programs";
@@ -180,6 +181,7 @@ function CreateProgramModal({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ProgramsPage() {
+  const router = useRouter();
   const [programs, setPrograms] = useState<ProgramCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -203,16 +205,19 @@ export default function ProgramsPage() {
     try {
       const created = await programsApi.create(dto);
       setPrograms((prev) => [dtoToCard(created), ...prev]);
+      setModalOpen(false);
+      router.push(`/programs/${created.slug}`);
     } catch {
-      // fallback: optimistic add
+      // fallback: optimistic add + navigate
       const slug = form.name.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
       setPrograms((prev) => [{
         id: slug, slug, label: form.name.trim(), enrolled: 0, attendance: null,
         schedule: form.schedule.trim() || "TBD", nextSession: "TBD",
         nextMeta: form.location.trim() || "Location TBD", alertCount: 0, color,
       }, ...prev]);
+      setModalOpen(false);
+      router.push(`/programs/${slug}`);
     }
-    setModalOpen(false);
   }
 
   return (
