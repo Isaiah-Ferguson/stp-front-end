@@ -319,6 +319,9 @@ export default function TasksPage() {
   const [doneTasks, setDoneTasks] = useState<Record<string, boolean>>({});
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<AddTaskForm>(EMPTY_TASK_FORM);
+  const [typeFilter, setTypeFilter] = useState<"all" | "production" | "staff" | "admin" | "event">("all");
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+  const [overdueOnly, setOverdueOnly] = useState(false);
 
   useEffect(() => {
     Promise.all([tasksApi.getProjects(), staffApi.getAll()])
@@ -419,20 +422,46 @@ export default function TasksPage() {
 
       <div className="adm-content">
         <div className="row tight" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <span className="ss-chip is-active mjc">All projects</span>
-          <span className="ss-chip">Productions</span>
-          <span className="ss-chip">Staff tasks</span>
-          <span className="ss-chip">Admin</span>
+          {([ ["all", "All projects"], ["production", "Productions"], ["staff", "Staff tasks"], ["admin", "Admin"] ] as [typeof typeFilter, string][]).map(([val, label]) => (
+            <span
+              key={val}
+              className={`ss-chip${typeFilter === val ? " is-active" : ""}`}
+              style={{ cursor: "pointer" }}
+              onClick={() => setTypeFilter(val)}
+            >
+              {label}
+            </span>
+          ))}
           <span style={{ width: 1, height: 22, background: "var(--border-strong)", margin: "0 4px" }} />
-          <span className="ss-chip is-active mjc">All assignees</span>
+          <span
+            className={`ss-chip${assigneeFilter === "all" ? " is-active" : ""}`}
+            style={{ cursor: "pointer" }}
+            onClick={() => setAssigneeFilter("all")}
+          >
+            All assignees
+          </span>
           {staffList.slice(0, 3).map((s) => (
-            <span key={s.id} className="ss-chip">
+            <span
+              key={s.id}
+              className={`ss-chip${assigneeFilter === s.id ? " is-active" : ""}`}
+              style={{ cursor: "pointer" }}
+              onClick={() => setAssigneeFilter(assigneeFilter === s.id ? "all" : s.id)}
+            >
               <span className={`ss-avatar ${s.role.toLowerCase()} sm`} style={{ width: 18, height: 18, fontSize: 9 }}>{s.initials}</span>
               {s.fullName}
             </span>
           ))}
           <span style={{ width: 1, height: 22, background: "var(--border-strong)", margin: "0 4px" }} />
-          <span className="ss-chip" style={{ background: "var(--danger-fill)", color: "var(--danger-text)", borderColor: "var(--danger-border)" }}>
+          <span
+            className="ss-chip"
+            style={{
+              background: overdueOnly ? "var(--danger-text)" : "var(--danger-fill)",
+              color: overdueOnly ? "var(--surface)" : "var(--danger-text)",
+              borderColor: "var(--danger-border)",
+              cursor: "pointer",
+            }}
+            onClick={() => setOverdueOnly((v) => !v)}
+          >
             <AlertCircle style={{ width: 12, height: 12 }} />Overdue
           </span>
         </div>
@@ -453,7 +482,26 @@ export default function TasksPage() {
           <div style={{ padding: "40px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>
             No projects yet — create one to get started.
           </div>
-        ) : projects.map((p, idx) => {
+        ) : (() => {
+          const filteredItems = projects
+            .map((p, idx) => ({ p, idx }))
+            .filter(({ p }) => {
+              if (typeFilter !== "all" && p.type[0] !== typeFilter) return false;
+              if (assigneeFilter !== "all") {
+                const staff = staffList.find((s) => s.id === assigneeFilter);
+                if (!staff || !p.tasks.some((t) => t.an === staff.fullName)) return false;
+              }
+              if (overdueOnly && !p.tasks.some((t) => t.overdue || t.status === "overdue")) return false;
+              return true;
+            });
+
+          if (filteredItems.length === 0) return (
+            <div style={{ padding: "40px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>
+              No projects match the current filters.
+            </div>
+          );
+
+          return filteredItems.map(({ p, idx }) => {
           const ProjIcon = p.icon;
           return (
             <div className={`proj${collapsed[idx] ? " is-collapsed" : ""}`} key={p.id}>
@@ -532,7 +580,7 @@ export default function TasksPage() {
               </div>
             </div>
           );
-        })}
+        });})()}
 
         <button className="create-proj" type="button">
           <FolderPlus />Create new project

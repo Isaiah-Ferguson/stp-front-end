@@ -13,6 +13,8 @@ import {
   FileText,
   X,
   Check,
+  Calendar,
+  Tag,
 } from "lucide-react";
 
 type ScriptType = "musical" | "play" | "scene" | "skit";
@@ -514,9 +516,268 @@ function AddScriptModal({
   );
 }
 
+// ── Script Detail Panel ───────────────────────────────────────────────────────
+
+function ScriptDetailPanel({ script, onClose }: { script: Script; onClose: () => void }) {
+  const TypeIcon = script.type === "musical" ? Music2 : FileText;
+  const { bg, color } = STATUS_STYLE[script.status];
+  const leadProg = script.programs[0];
+
+  const rowStyle: React.CSSProperties = {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 10,
+    padding: "var(--space-3) 0",
+    borderBottom: "0.5px solid var(--border)",
+  };
+  const labelStyle: React.CSSProperties = {
+    fontSize: 12,
+    color: "var(--fg-tertiary)",
+    width: 96,
+    flexShrink: 0,
+    paddingTop: 1,
+  };
+  const valueStyle: React.CSSProperties = {
+    fontSize: 13,
+    color: "var(--fg)",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 5,
+    alignItems: "center",
+  };
+
+  return (
+    <>
+      {/* backdrop */}
+      <div
+        onClick={onClose}
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(43,42,38,.35)",
+          zIndex: 200,
+        }}
+      />
+      {/* panel */}
+      <div
+        style={{
+          position: "fixed",
+          top: 0,
+          right: 0,
+          bottom: 0,
+          width: "min(440px, 100vw)",
+          background: "var(--surface)",
+          borderLeft: "0.5px solid var(--border-hover)",
+          zIndex: 201,
+          display: "flex",
+          flexDirection: "column",
+          animation: "slideInRight 180ms ease-out",
+        }}
+      >
+        {/* colored header */}
+        <div
+          style={{
+            background: `var(--${leadProg}-fill)`,
+            padding: "var(--space-4)",
+            borderBottom: "0.5px solid var(--border)",
+            flexShrink: 0,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+              gap: 8,
+              marginBottom: "var(--space-3)",
+            }}
+          >
+            <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  fontSize: 11,
+                  fontWeight: 500,
+                  padding: "2px 7px",
+                  borderRadius: "var(--r-sm)",
+                  background: "var(--surface)",
+                  color: "var(--fg-secondary)",
+                  border: "0.5px solid var(--border)",
+                }}
+              >
+                <TypeIcon style={{ width: 11, height: 11 }} />
+                {TYPE_LABEL[script.type]}
+              </span>
+              {script.adapted && (
+                <span
+                  style={{
+                    fontSize: 11,
+                    padding: "2px 7px",
+                    borderRadius: "var(--r-sm)",
+                    background: "var(--info-fill)",
+                    color: "var(--info-text)",
+                    border: "0.5px solid var(--info-border)",
+                  }}
+                >
+                  Adapted
+                </span>
+              )}
+              {script.original && (
+                <span
+                  style={{
+                    fontSize: 11,
+                    padding: "2px 7px",
+                    borderRadius: "var(--r-sm)",
+                    background: "var(--success-fill)",
+                    color: "var(--success-text)",
+                    border: "0.5px solid var(--success-border)",
+                  }}
+                >
+                  Original
+                </span>
+              )}
+              <span
+                style={{
+                  fontSize: 11,
+                  padding: "2px 7px",
+                  borderRadius: "var(--r-sm)",
+                  background: bg,
+                  color,
+                  textTransform: "capitalize",
+                }}
+              >
+                {script.status}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                background: "var(--surface)",
+                border: "0.5px solid var(--border)",
+                borderRadius: "var(--r-sm)",
+                cursor: "pointer",
+                color: "var(--fg-tertiary)",
+                padding: 5,
+                display: "flex",
+                flexShrink: 0,
+              }}
+            >
+              <X style={{ width: 14, height: 14 }} />
+            </button>
+          </div>
+          <h2 style={{ fontSize: 17, fontWeight: 600, margin: "0 0 3px", color: "var(--fg)" }}>
+            {script.title}
+          </h2>
+          {script.subtitle && (
+            <div style={{ fontSize: 13, color: "var(--fg-secondary)" }}>{script.subtitle}</div>
+          )}
+        </div>
+
+        {/* detail rows */}
+        <div
+          style={{
+            padding: "0 var(--space-4)",
+            flex: 1,
+            overflowY: "auto",
+          }}
+        >
+          {/* Programs */}
+          <div style={rowStyle}>
+            <div style={labelStyle}>Programs</div>
+            <div style={valueStyle}>
+              {script.programs.map((p) => (
+                <span key={p} className={`ss-program ${p}`}>
+                  {PROG_LABEL[p]}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Cast size */}
+          {script.castMin !== undefined && script.castMax !== undefined && (
+            <div style={rowStyle}>
+              <div style={labelStyle}>Cast size</div>
+              <div style={{ ...valueStyle, gap: 4 }}>
+                <Users style={{ width: 13, height: 13, color: "var(--fg-tertiary)" }} />
+                {script.castMin}–{script.castMax} participants
+              </div>
+            </div>
+          )}
+
+          {/* Duration */}
+          <div style={rowStyle}>
+            <div style={labelStyle}>Duration</div>
+            <div style={{ ...valueStyle, gap: 4 }}>
+              <Clock style={{ width: 13, height: 13, color: "var(--fg-tertiary)" }} />
+              {script.duration}
+            </div>
+          </div>
+
+          {/* Last performed */}
+          <div style={rowStyle}>
+            <div style={labelStyle}>{script.status === "draft" ? "Timeline" : "Last performed"}</div>
+            <div style={{ ...valueStyle, gap: 4 }}>
+              <Calendar style={{ width: 13, height: 13, color: "var(--fg-tertiary)" }} />
+              {script.lastUsed}
+            </div>
+          </div>
+
+          {/* Type detail */}
+          <div style={{ ...rowStyle, borderBottom: "none" }}>
+            <div style={labelStyle}>Script type</div>
+            <div style={{ ...valueStyle, gap: 4 }}>
+              <Tag style={{ width: 13, height: 13, color: "var(--fg-tertiary)" }} />
+              {TYPE_LABEL[script.type]}
+              {script.original ? " · Original work" : script.adapted ? " · Adapted" : ""}
+            </div>
+          </div>
+        </div>
+
+        {/* footer actions */}
+        <div
+          style={{
+            padding: "var(--space-3) var(--space-4)",
+            borderTop: "0.5px solid var(--border)",
+            display: "flex",
+            gap: 8,
+            flexShrink: 0,
+            background: "var(--bg)",
+          }}
+        >
+          <button
+            type="button"
+            className="ss-btn"
+            style={{ flex: 1, justifyContent: "center" }}
+          >
+            <Download className="ss-btn-icon" />
+            Download PDF
+          </button>
+          <button
+            type="button"
+            className="ss-btn"
+            onClick={onClose}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes slideInRight {
+          from { transform: translateX(100%); }
+          to   { transform: translateX(0); }
+        }
+      `}</style>
+    </>
+  );
+}
+
 // ── Script Card ───────────────────────────────────────────────────────────────
 
-function ScriptCard({ script }: { script: Script }) {
+function ScriptCard({ script, onViewDetails }: { script: Script; onViewDetails: () => void }) {
   const TypeIcon = script.type === "musical" ? Music2 : FileText;
   const { bg, color } = STATUS_STYLE[script.status];
   const leadProg = script.programs[0];
@@ -688,6 +949,7 @@ function ScriptCard({ script }: { script: Script }) {
         </button>
         <button
           type="button"
+          onClick={onViewDetails}
           style={{
             background: "none",
             border: "none",
@@ -718,6 +980,7 @@ export default function DocumentsPage() {
   const [progFilter, setProgFilter] = useState<"all" | Prog>("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [selectedScript, setSelectedScript] = useState<Script | null>(null);
 
   const visible = useMemo(
     () =>
@@ -861,7 +1124,11 @@ export default function DocumentsPage() {
             }}
           >
             {visible.map((script) => (
-              <ScriptCard key={script.title} script={script} />
+              <ScriptCard
+                key={script.title}
+                script={script}
+                onViewDetails={() => setSelectedScript(script)}
+              />
             ))}
           </div>
         ) : (
@@ -903,6 +1170,13 @@ export default function DocumentsPage() {
           setForm={setForm}
           onClose={closeModal}
           onSubmit={handleSubmit}
+        />
+      )}
+
+      {selectedScript && (
+        <ScriptDetailPanel
+          script={selectedScript}
+          onClose={() => setSelectedScript(null)}
         />
       )}
     </div>

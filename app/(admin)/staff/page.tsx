@@ -14,6 +14,8 @@ import {
   ListChecks,
   Pencil,
   X,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { staffApi } from "@/lib/api/staff";
 import { programsApi } from "@/lib/api/programs";
@@ -68,6 +70,245 @@ function groupBySection(items: StaffDetailDto["onboardingItems"]) {
     map.get(item.section)!.push(item);
   }
   return [...map.entries()];
+}
+
+// ── Checklist Template ────────────────────────────────────────────────────────
+
+type TemplateItem = { id: string; label: string };
+type TemplateSection = { name: string; items: TemplateItem[] };
+
+const DEFAULT_TEMPLATE: TemplateSection[] = [
+  {
+    name: "HR & Compliance",
+    items: [
+      { id: "t1", label: "W-4 / I-9 completed" },
+      { id: "t2", label: "Background check cleared" },
+      { id: "t3", label: "Emergency contact form submitted" },
+    ],
+  },
+  {
+    name: "Training",
+    items: [
+      { id: "t4", label: "Program overview training" },
+      { id: "t5", label: "Child safety & mandated reporter training" },
+      { id: "t6", label: "First aid / CPR certification" },
+    ],
+  },
+  {
+    name: "Program Requirements",
+    items: [
+      { id: "t7", label: "Liability waiver signed" },
+      { id: "t8", label: "Code of conduct acknowledged" },
+      { id: "t9", label: "Media release policy reviewed" },
+    ],
+  },
+  {
+    name: "Access & Setup",
+    items: [
+      { id: "t10", label: "Staff email account created" },
+      { id: "t11", label: "Program schedule provided" },
+      { id: "t12", label: "Participant roster access granted" },
+    ],
+  },
+];
+
+function EditChecklistModal({
+  template,
+  onClose,
+  onSave,
+}: {
+  template: TemplateSection[];
+  onClose: () => void;
+  onSave: (t: TemplateSection[]) => void;
+}) {
+  const [draft, setDraft] = useState<TemplateSection[]>(() =>
+    template.map((s) => ({ ...s, items: s.items.map((i) => ({ ...i })) }))
+  );
+
+  let _nextId = Date.now();
+  function uid() { return String(_nextId++); }
+
+  function updateSectionName(si: number, name: string) {
+    setDraft((d) => d.map((s, i) => i === si ? { ...s, name } : s));
+  }
+  function deleteSection(si: number) {
+    setDraft((d) => d.filter((_, i) => i !== si));
+  }
+  function addSection() {
+    setDraft((d) => [...d, { name: "", items: [] }]);
+  }
+  function updateItemLabel(si: number, ii: number, label: string) {
+    setDraft((d) => d.map((s, i) =>
+      i !== si ? s : { ...s, items: s.items.map((it, j) => j === ii ? { ...it, label } : it) }
+    ));
+  }
+  function deleteItem(si: number, ii: number) {
+    setDraft((d) => d.map((s, i) =>
+      i !== si ? s : { ...s, items: s.items.filter((_, j) => j !== ii) }
+    ));
+  }
+  function addItem(si: number) {
+    setDraft((d) => d.map((s, i) =>
+      i !== si ? s : { ...s, items: [...s.items, { id: uid(), label: "" }] }
+    ));
+  }
+
+  const totalItems = draft.reduce((n, s) => n + s.items.length, 0);
+
+  const secInputStyle: React.CSSProperties = {
+    flex: 1,
+    border: "none",
+    borderBottom: "0.5px solid var(--border-hover)",
+    borderRadius: 0,
+    padding: "2px 0",
+    fontSize: 11,
+    fontWeight: 500,
+    textTransform: "uppercase",
+    letterSpacing: "0.06em",
+    color: "var(--fg-secondary)",
+    background: "transparent",
+    outline: "none",
+  };
+  const itemInputStyle: React.CSSProperties = {
+    flex: 1,
+    border: "none",
+    padding: "2px 0",
+    fontSize: 13,
+    color: "var(--fg)",
+    background: "transparent",
+    outline: "none",
+  };
+  const iconBtnStyle: React.CSSProperties = {
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    padding: 3,
+    borderRadius: "var(--r-sm)",
+    color: "var(--fg-tertiary)",
+    display: "flex",
+    alignItems: "center",
+    flexShrink: 0,
+  };
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, background: "rgba(43,42,38,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: "var(--space-4)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div style={{ background: "var(--surface)", borderRadius: "var(--r-lg)", width: "min(540px, 100%)", display: "flex", flexDirection: "column", border: "0.5px solid var(--border-hover)", maxHeight: "90vh" }}>
+
+        {/* header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "var(--space-4)", borderBottom: "0.5px solid var(--border)", flexShrink: 0 }}>
+          <div>
+            <h3 style={{ fontSize: 15, fontWeight: 500, margin: "0 0 2px" }}>Edit checklist template</h3>
+            <div style={{ fontSize: 12, color: "var(--fg-tertiary)" }}>
+              {draft.length} section{draft.length !== 1 ? "s" : ""} · {totalItems} item{totalItems !== 1 ? "s" : ""} · Changes apply to new staff members
+            </div>
+          </div>
+          <button type="button" onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--fg-tertiary)", padding: 4, borderRadius: "var(--r-sm)" }}>
+            <X style={{ width: 16, height: 16 }} />
+          </button>
+        </div>
+
+        {/* scrollable body */}
+        <div style={{ padding: "var(--space-4)", display: "flex", flexDirection: "column", gap: "var(--space-4)", overflowY: "auto" }}>
+          {draft.map((sec, si) => (
+            <div key={si} style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+              {/* section header row */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <input
+                  value={sec.name}
+                  onChange={(e) => updateSectionName(si, e.target.value)}
+                  placeholder="Section name"
+                  style={secInputStyle}
+                />
+                <button
+                  type="button"
+                  onClick={() => deleteSection(si)}
+                  title="Delete section"
+                  style={{ ...iconBtnStyle, color: "var(--danger)" }}
+                >
+                  <Trash2 style={{ width: 13, height: 13 }} />
+                </button>
+              </div>
+
+              {/* items */}
+              {sec.items.map((item, ii) => (
+                <div
+                  key={item.id}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", borderBottom: "0.5px solid var(--border)" }}
+                >
+                  <span
+                    className="ss-checkbox"
+                    style={{ cursor: "default", flexShrink: 0, opacity: 0.4 }}
+                  />
+                  <input
+                    value={item.label}
+                    onChange={(e) => updateItemLabel(si, ii, e.target.value)}
+                    placeholder="Checklist item"
+                    style={itemInputStyle}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => deleteItem(si, ii)}
+                    title="Remove item"
+                    style={iconBtnStyle}
+                  >
+                    <X style={{ width: 13, height: 13 }} />
+                  </button>
+                </div>
+              ))}
+
+              {/* add item */}
+              <button
+                type="button"
+                onClick={() => addItem(si)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  fontSize: 12,
+                  color: "var(--primary)",
+                  padding: "6px 0",
+                  fontWeight: 500,
+                }}
+              >
+                <Plus style={{ width: 12, height: 12 }} />
+                Add item
+              </button>
+            </div>
+          ))}
+
+          {/* add section */}
+          <button
+            type="button"
+            onClick={addSection}
+            className="btn-dashed"
+            style={{ marginTop: 0 }}
+          >
+            <Plus style={{ width: 14, height: 14 }} />
+            Add section
+          </button>
+        </div>
+
+        {/* footer */}
+        <div style={{ padding: "var(--space-3) var(--space-4)", borderTop: "0.5px solid var(--border)", display: "flex", gap: 8, justifyContent: "flex-end", flexShrink: 0 }}>
+          <button className="ss-btn" type="button" onClick={onClose}>Cancel</button>
+          <button
+            className="ss-btn ss-btn-primary"
+            type="button"
+            onClick={() => { onSave(draft); onClose(); }}
+          >
+            <Check className="ss-btn-icon" />
+            Save template
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ── Add Staff Modal ───────────────────────────────────────────────────────────
@@ -188,6 +429,8 @@ export default function StaffPage() {
   const [detailCache, setDetailCache] = useState<Record<string, StaffDetailDto>>({});
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<AddStaffForm>(EMPTY_STAFF_FORM);
+  const [templateOpen, setTemplateOpen] = useState(false);
+  const [template, setTemplate] = useState<TemplateSection[]>(DEFAULT_TEMPLATE);
 
   useEffect(() => {
     Promise.all([staffApi.getAll(), programsApi.getAll()])
@@ -432,7 +675,7 @@ export default function StaffPage() {
                   Every staff member completes a checklist across key sections before they&apos;re cleared to work with participants.
                 </span>
               </div>
-              <button className="btn-dashed" type="button">
+              <button className="btn-dashed" type="button" onClick={() => setTemplateOpen(true)}>
                 <Pencil />Edit checklist template
               </button>
             </div>
@@ -442,6 +685,14 @@ export default function StaffPage() {
 
       {modalOpen && (
         <AddStaffModal programs={programs} form={form} setForm={setForm} onClose={closeModal} onSubmit={handleSubmit} />
+      )}
+
+      {templateOpen && (
+        <EditChecklistModal
+          template={template}
+          onClose={() => setTemplateOpen(false)}
+          onSave={(t) => setTemplate(t)}
+        />
       )}
     </div>
   );

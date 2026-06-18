@@ -3,9 +3,9 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { AlertCircle, ChevronRight, Plus, X } from "lucide-react";
+import { AlertCircle, ChevronRight, Plus, X, Pencil, Check } from "lucide-react";
 import { programsApi } from "@/lib/api/programs";
-import type { ProgramSummaryDto, CreateProgramDto } from "@/lib/types/api";
+import type { ProgramSummaryDto, CreateProgramDto, UpdateProgramDto } from "@/lib/types/api";
 
 // ── Color palette ─────────────────────────────────────────────────────────────
 
@@ -25,6 +25,37 @@ function colorFromHex(hex: string): ProgramColor {
   return match ?? { key: "custom", label: "Custom", main: hex, fill: hex + "22", border: hex + "66" };
 }
 
+// ── Schedule helpers ──────────────────────────────────────────────────────────
+
+const DAYS: { full: string; abbr: string }[] = [
+  { full: "Sunday", abbr: "Sun" },
+  { full: "Monday", abbr: "Mon" },
+  { full: "Tuesday", abbr: "Tue" },
+  { full: "Wednesday", abbr: "Wed" },
+  { full: "Thursday", abbr: "Thu" },
+  { full: "Friday", abbr: "Fri" },
+  { full: "Saturday", abbr: "Sat" },
+];
+const DAY_ORDER = DAYS.map((d) => d.full);
+
+/** "Monday, Wednesday, Friday" | "None" | null → ["Monday","Wednesday","Friday"] */
+function parseDays(s: string | null | undefined): string[] {
+  if (!s || s === "None") return [];
+  return s.split(",").map((x) => x.trim()).filter(Boolean);
+}
+/** ["Monday","Wednesday","Friday"] → "Mon / Wed / Fri" (display label) */
+function scheduleLabel(days: string[]): string {
+  return days
+    .slice()
+    .sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b))
+    .map((f) => DAYS.find((d) => d.full === f)?.abbr ?? f)
+    .join(" / ");
+}
+/** "09:00:00" → "09:00" for <input type="time"> */
+function hhmm(t: string | null): string {
+  return t ? t.slice(0, 5) : "";
+}
+
 // ── Local card type ───────────────────────────────────────────────────────────
 
 type ProgramCard = {
@@ -38,6 +69,11 @@ type ProgramCard = {
   nextMeta: string;
   alertCount: number;
   color: ProgramColor;
+  // editable schedule fields
+  meetingDays: string;
+  startTime: string | null;
+  endTime: string | null;
+  location: string;
 };
 
 function dtoToCard(dto: ProgramSummaryDto): ProgramCard {
@@ -52,22 +88,43 @@ function dtoToCard(dto: ProgramSummaryDto): ProgramCard {
     nextMeta: dto.nextSessionMeta ?? (dto.defaultLocation ?? ""),
     alertCount: dto.alertCount,
     color: colorFromHex(dto.colorHex),
+    meetingDays: dto.meetingDays ?? "None",
+    startTime: dto.startTime,
+    endTime: dto.endTime,
+    location: dto.defaultLocation ?? "",
   };
 }
 
-// ── Create Program Modal ──────────────────────────────────────────────────────
+// ── Program form (create + edit) ───────────────────────────────────────────────
 
-type CreateForm = { name: string; colorKey: string; schedule: string; location: string };
-const EMPTY_FORM: CreateForm = { name: "", colorKey: "", schedule: "", location: "" };
+type ProgForm = { name: string; colorKey: string; days: string[]; start: string; end: string; location: string };
 
-function CreateProgramModal({
+function emptyForm(): ProgForm {
+  return { name: "", colorKey: "", days: [], start: "", end: "", location: "" };
+}
+function formFromCard(c: ProgramCard): ProgForm {
+  return {
+    name: c.label,
+    colorKey: c.color.key,
+    days: parseDays(c.meetingDays),
+    start: hhmm(c.startTime),
+    end: hhmm(c.endTime),
+    location: c.location,
+  };
+}
+
+function ProgramFormModal({
+  mode,
+  initial,
   onClose,
   onSubmit,
 }: {
+  mode: "create" | "edit";
+  initial?: ProgramCard;
   onClose: () => void;
-  onSubmit: (form: CreateForm) => void;
+  onSubmit: (form: ProgForm) => void;
 }) {
-  const [form, setForm] = useState<CreateForm>(EMPTY_FORM);
+  const [form, setForm] = useState<ProgForm>(() => (initial ? formFromCard(initial) : emptyForm()));
   const canSubmit = form.name.trim().length > 0 && form.colorKey !== "";
 
   const inputStyle: React.CSSProperties = {
@@ -76,6 +133,13 @@ function CreateProgramModal({
     padding: "8px 12px", fontSize: 13, color: "var(--fg)",
     background: "var(--surface)", outline: "none",
   };
+
+  function toggleDay(full: string) {
+    setForm((f) => ({
+      ...f,
+      days: f.days.includes(full) ? f.days.filter((d) => d !== full) : [...f.days, full],
+    }));
+  }
 
   return (
     <div
@@ -96,8 +160,12 @@ function CreateProgramModal({
           padding: "var(--space-4)", borderBottom: "0.5px solid var(--border)", flexShrink: 0,
         }}>
           <div>
-            <h3 style={{ fontSize: 15, fontWeight: 500, margin: "0 0 2px" }}>Create program</h3>
-            <div style={{ fontSize: 12, color: "var(--fg-tertiary)" }}>New program will appear on the Programs page</div>
+            <h3 style={{ fontSize: 15, fontWeight: 500, margin: "0 0 2px" }}>
+              {mode === "edit" ? "Edit program" : "Create program"}
+            </h3>
+            <div style={{ fontSize: 12, color: "var(--fg-tertiary)" }}>
+              {mode === "edit" ? "Changes apply to this program and new sessions" : "New program will appear on the Programs page"}
+            </div>
           </div>
           <button type="button" onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--fg-tertiary)", padding: 4, borderRadius: "var(--r-sm)" }}>
             <X style={{ width: 16, height: 16 }} />
@@ -133,24 +201,49 @@ function CreateProgramModal({
                 );
               })}
             </div>
-            {form.colorKey && (() => {
-              const c = COLOR_OPTIONS.find((o) => o.key === form.colorKey)!;
-              return (
-                <div style={{ marginTop: 8, fontSize: 12, color: "var(--fg-secondary)", display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: c.main, display: "inline-block", flexShrink: 0 }} />
-                  {c.label} selected
-                </div>
-              );
-            })()}
           </div>
 
+          {/* Meeting days */}
           <div>
-            <div className="ss-label" style={{ marginBottom: 6 }}>
-              Schedule <span style={{ fontSize: 11, color: "var(--fg-tertiary)", fontWeight: 400 }}>Optional — e.g. Mon / Wed / Fri</span>
+            <div className="ss-label" style={{ marginBottom: 8 }}>
+              Meeting days{" "}
+              <span style={{ fontSize: 11, color: "var(--fg-tertiary)", fontWeight: 400 }}>
+                Determines which days this program appears for attendance
+              </span>
             </div>
-            <input type="text" placeholder="Mon / Wed / Fri" value={form.schedule}
-              onChange={(e) => setForm((f) => ({ ...f, schedule: e.target.value }))}
-              style={inputStyle} />
+            <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+              {DAYS.map((d) => (
+                <button
+                  key={d.full}
+                  type="button"
+                  className={`ss-chip${form.days.includes(d.full) ? " is-active" : ""}`}
+                  style={{ cursor: "pointer" }}
+                  onClick={() => toggleDay(d.full)}
+                >
+                  {d.abbr}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Times */}
+          <div style={{ display: "flex", gap: "var(--space-4)", flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 130 }}>
+              <div className="ss-label" style={{ marginBottom: 6 }}>
+                Start time <span style={{ fontSize: 11, color: "var(--fg-tertiary)", fontWeight: 400 }}>Optional</span>
+              </div>
+              <input type="time" value={form.start}
+                onChange={(e) => setForm((f) => ({ ...f, start: e.target.value }))}
+                style={inputStyle} />
+            </div>
+            <div style={{ flex: 1, minWidth: 130 }}>
+              <div className="ss-label" style={{ marginBottom: 6 }}>
+                End time <span style={{ fontSize: 11, color: "var(--fg-tertiary)", fontWeight: 400 }}>Optional</span>
+              </div>
+              <input type="time" value={form.end}
+                onChange={(e) => setForm((f) => ({ ...f, end: e.target.value }))}
+                style={inputStyle} />
+            </div>
           </div>
 
           <div>
@@ -169,8 +262,8 @@ function CreateProgramModal({
         }}>
           <button className="ss-btn" type="button" onClick={onClose}>Cancel</button>
           <button className="ss-btn ss-btn-primary" type="button" disabled={!canSubmit} onClick={() => onSubmit(form)}>
-            <Plus className="ss-btn-icon" />
-            Create program
+            {mode === "edit" ? <Check className="ss-btn-icon" /> : <Plus className="ss-btn-icon" />}
+            {mode === "edit" ? "Save changes" : "Create program"}
           </button>
         </div>
       </div>
@@ -184,7 +277,8 @@ export default function ProgramsPage() {
   const router = useRouter();
   const [programs, setPrograms] = useState<ProgramCard[]>([]);
   const [loading, setLoading] = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [mode, setMode] = useState<"create" | "edit" | null>(null);
+  const [editing, setEditing] = useState<ProgramCard | null>(null);
 
   useEffect(() => {
     programsApi.getAll()
@@ -193,29 +287,66 @@ export default function ProgramsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  async function handleCreate(form: CreateForm) {
-    const color = COLOR_OPTIONS.find((c) => c.key === form.colorKey)!;
-    const dto: CreateProgramDto = {
+  function closeModal() { setMode(null); setEditing(null); }
+
+  // Shared payload from the form (color + structured schedule).
+  function buildPayload(form: ProgForm) {
+    const color = COLOR_OPTIONS.find((c) => c.key === form.colorKey);
+    const colorHex = color ? color.main : (editing?.color.main ?? "#378add");
+    const days = form.days;
+    return {
       name: form.name.trim(),
-      colorHex: color.main,
-      sessionSchedule: form.schedule.trim() || undefined,
+      colorHex,
+      meetingDays: days.length ? days.join(", ") : "None",
+      startTime: form.start ? `${form.start}:00` : undefined,
+      endTime: form.end ? `${form.end}:00` : undefined,
+      sessionSchedule: days.length ? scheduleLabel(days) : undefined,
       defaultLocation: form.location.trim() || undefined,
     };
+  }
 
+  async function handleSubmit(form: ProgForm) {
+    if (mode === "edit" && editing) {
+      const dto: UpdateProgramDto = { ...buildPayload(form) };
+      try {
+        const updated = await programsApi.update(editing.id, dto);
+        setPrograms((prev) => prev.map((p) => (p.id === updated.id ? dtoToCard(updated) : p)));
+      } catch {
+        // optimistic local update if the API call fails
+        setPrograms((prev) => prev.map((p) => (p.id === editing.id ? {
+          ...p,
+          label: form.name.trim(),
+          color: colorFromHex(buildPayload(form).colorHex),
+          meetingDays: form.days.length ? form.days.join(", ") : "None",
+          startTime: form.start ? `${form.start}:00` : null,
+          endTime: form.end ? `${form.end}:00` : null,
+          location: form.location.trim(),
+          schedule: form.days.length ? scheduleLabel(form.days) : "—",
+        } : p)));
+      }
+      closeModal();
+      return;
+    }
+
+    // create
+    const payload = buildPayload(form);
+    const dto: CreateProgramDto = payload;
     try {
       const created = await programsApi.create(dto);
       setPrograms((prev) => [dtoToCard(created), ...prev]);
-      setModalOpen(false);
+      closeModal();
       router.push(`/programs/${created.slug}`);
     } catch {
-      // fallback: optimistic add + navigate
       const slug = form.name.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
       setPrograms((prev) => [{
         id: slug, slug, label: form.name.trim(), enrolled: 0, attendance: null,
-        schedule: form.schedule.trim() || "TBD", nextSession: "TBD",
-        nextMeta: form.location.trim() || "Location TBD", alertCount: 0, color,
+        schedule: form.days.length ? scheduleLabel(form.days) : "TBD", nextSession: "TBD",
+        nextMeta: form.location.trim() || "Location TBD", alertCount: 0,
+        color: colorFromHex(payload.colorHex),
+        meetingDays: payload.meetingDays, startTime: payload.startTime ?? null,
+        endTime: payload.endTime ?? null, location: form.location.trim(),
       }, ...prev]);
-      setModalOpen(false);
+      closeModal();
       router.push(`/programs/${slug}`);
     }
   }
@@ -233,6 +364,8 @@ export default function ProgramsPage() {
         .prog-stat .num { font-size: 18px; font-weight: 500; color: var(--fg); line-height: 1; }
         .prog-stat .lbl { font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--fg-tertiary); }
         .prog-card-foot { padding: 8px 14px; border-top: 0.5px solid var(--border); background: var(--bg); display: flex; align-items: center; justify-content: space-between; }
+        .prog-edit-btn { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: var(--r-sm); border: 0.5px solid var(--border); background: var(--surface); color: var(--fg-secondary); cursor: pointer; flex-shrink: 0; }
+        .prog-edit-btn:hover { border-color: var(--border-hover); color: var(--fg); }
         .prog-skeleton { height: 160px; background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--r-lg); animation: pulse 1.4s ease-in-out infinite; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
       `}</style>
@@ -244,7 +377,7 @@ export default function ProgramsPage() {
             <span className="date">{new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</span>
           </div>
           <div className="right">
-            <button className="ss-btn ss-btn-primary" type="button" onClick={() => setModalOpen(true)}>
+            <button className="ss-btn ss-btn-primary" type="button" onClick={() => { setEditing(null); setMode("create"); }}>
               <Plus className="ss-btn-icon" />
               Create program
             </button>
@@ -264,11 +397,21 @@ export default function ProgramsPage() {
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                       <span className="ss-dot" style={{ background: p.color.main, flexShrink: 0 }} />
                       <span style={{ fontSize: 15, fontWeight: 500 }}>{p.label}</span>
-                      {p.alertCount > 0 && (
-                        <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, color: "var(--danger)" }}>
-                          <AlertCircle style={{ width: 11, height: 11 }} />{p.alertCount}
-                        </span>
-                      )}
+                      <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 8 }}>
+                        {p.alertCount > 0 && (
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, color: "var(--danger)" }}>
+                            <AlertCircle style={{ width: 11, height: 11 }} />{p.alertCount}
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          className="prog-edit-btn"
+                          title="Edit program"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditing(p); setMode("edit"); }}
+                        >
+                          <Pencil style={{ width: 12, height: 12 }} />
+                        </button>
+                      </span>
                     </div>
                     <div style={{ fontSize: 12, color: "var(--fg-secondary)" }}>
                       {p.enrolled} enrolled · {p.schedule}
@@ -301,8 +444,13 @@ export default function ProgramsPage() {
         </div>
       </div>
 
-      {modalOpen && (
-        <CreateProgramModal onClose={() => setModalOpen(false)} onSubmit={handleCreate} />
+      {mode && (
+        <ProgramFormModal
+          mode={mode}
+          initial={editing ?? undefined}
+          onClose={closeModal}
+          onSubmit={handleSubmit}
+        />
       )}
     </>
   );

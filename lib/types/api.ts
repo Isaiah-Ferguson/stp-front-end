@@ -70,6 +70,11 @@ export interface ProgramSummaryDto {
   colorHex: string;
   sessionSchedule: string | null;
   defaultLocation: string | null;
+  /** Flags enum serialized as comma-separated names, e.g. "Monday, Wednesday, Friday" or "None". */
+  meetingDays: string;
+  /** "HH:mm:ss" or null. */
+  startTime: string | null;
+  endTime: string | null;
   enrolledCount: number;
   attendancePct: number | null;
   nextSessionDate: string | null;
@@ -102,6 +107,21 @@ export interface CreateProgramDto {
   colorHex: string;
   sessionSchedule?: string;
   defaultLocation?: string;
+  /** Comma-separated day names ("Monday, Wednesday, Friday") or "None". */
+  meetingDays?: string;
+  /** "HH:mm:ss". */
+  startTime?: string;
+  endTime?: string;
+}
+
+export interface UpdateProgramDto {
+  name: string;
+  colorHex: string;
+  sessionSchedule?: string;
+  defaultLocation?: string;
+  meetingDays: string;
+  startTime?: string;
+  endTime?: string;
 }
 
 // ── Participants ──────────────────────────────────────────────────────────────
@@ -222,6 +242,37 @@ export interface AttendanceRosterEntryDto {
 export interface CreateAttendanceNoteDto {
   content: string;
   noteType: "observation" | "concern";
+}
+
+/** A session card on the attendance landing page (scoped to the current user's programs). */
+export interface ScheduledSessionDto {
+  sessionId: Guid | null;
+  programId: Guid;
+  programSlug: string;
+  programName: string;
+  colorHex: string;
+  date: string;
+  timeRange: string | null;
+  room: string | null;
+  status: "not-started" | "in-progress" | "submitted";
+  markedCount: number;
+  totalCount: number;
+  isAdHoc: boolean;
+}
+
+/** A single session's roster plus meta — the working view for taking attendance. */
+export interface SessionRosterDto {
+  sessionId: Guid;
+  programId: Guid;
+  programSlug: string;
+  programName: string;
+  colorHex: string;
+  date: string;
+  timeRange: string | null;
+  room: string | null;
+  status: "open" | "submitted";
+  submittedAt: string | null;
+  entries: AttendanceRosterEntryDto[];
 }
 
 // ── Projects & Tasks ──────────────────────────────────────────────────────────
