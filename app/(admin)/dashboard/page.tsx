@@ -22,12 +22,7 @@ import StaffList from "../components/StaffList";
 import Widget from "../components/Widget";
 import StatCard from "../components/StatCard";
 import BarChart from "../components/BarChart";
-import { participantsApi } from "@/lib/api/participants";
-import { attendanceApi } from "@/lib/api/attendance";
-import { tasksApi } from "@/lib/api/tasks";
-import { staffApi } from "@/lib/api/staff";
-import { programsApi } from "@/lib/api/programs";
-import { calendarApi } from "@/lib/api/calendar";
+import { dashboardApi } from "@/lib/api/dashboard";
 import type {
   ParticipantSummaryDto,
   AttendanceRosterEntryDto,
@@ -67,27 +62,16 @@ export default function DashboardPage() {
   const [events, setEvents] = useState<CalendarEventDto[]>([]);
 
   useEffect(() => {
-    const now = new Date();
-    const m = now.getMonth() + 1, y = now.getFullYear();
-    const nm = m === 12 ? 1 : m + 1, ny = m === 12 ? y + 1 : y;
-
-    Promise.all([
-      participantsApi.getAll().catch(() => [] as ParticipantSummaryDto[]),
-      attendanceApi.getTodayRoster().catch(() => [] as AttendanceRosterEntryDto[]),
-      tasksApi.getProjects().catch(() => [] as ProjectDto[]),
-      staffApi.getAll().catch(() => [] as StaffSummaryDto[]),
-      programsApi.getAll().catch(() => [] as ProgramSummaryDto[]),
-      calendarApi.getEvents(m, y).catch(() => [] as CalendarEventDto[]),
-      calendarApi.getEvents(nm, ny).catch(() => [] as CalendarEventDto[]),
-    ])
-      .then(([p, r, proj, s, prog, ev1, ev2]) => {
-        setParticipants(p);
-        setRoster(r);
-        setProjects(proj);
-        setStaff(s);
-        setPrograms(prog);
-        setEvents([...ev1, ...ev2]);
+    dashboardApi.get()
+      .then((d) => {
+        setParticipants(d.participants);
+        setRoster(d.todayRoster);
+        setProjects(d.projects);
+        setStaff(d.staff);
+        setPrograms(d.programs);
+        setEvents(d.events);
       })
+      .catch(() => { /* leave empty state */ })
       .finally(() => setLoading(false));
   }, []);
 

@@ -275,6 +275,17 @@ export interface SessionRosterDto {
   entries: AttendanceRosterEntryDto[];
 }
 
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+
+export interface DashboardDto {
+  participants: ParticipantSummaryDto[];
+  todayRoster: AttendanceRosterEntryDto[];
+  projects: ProjectDto[];
+  staff: StaffSummaryDto[];
+  programs: ProgramSummaryDto[];
+  events: CalendarEventDto[];
+}
+
 // ── Projects & Tasks ──────────────────────────────────────────────────────────
 
 export interface ProjectDto {
