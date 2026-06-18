@@ -32,7 +32,6 @@ import type {
 
 type Status = "active" | "prospective" | "attention" | "former";
 type AlertKind = "expiring" | "overdue" | "missing";
-type ExpKind = "red" | "amber" | "green";
 
 const STATUS_BADGE: Record<Status, { cls: string; icon: LucideIcon; label: string }> = {
   active:      { cls: "is-active",      icon: CheckCircle2, label: "Active" },
@@ -47,12 +46,6 @@ const ALERT_ICON: Record<AlertKind, { icon: LucideIcon; cls: string }> = {
   missing:  { icon: FileX,         cls: "ai-missing" },
 };
 
-const EXP_ICON: Record<ExpKind, LucideIcon> = {
-  red:   AlertCircle,
-  amber: Clock,
-  green: Check,
-};
-
 type Student = {
   id: string;
   init: string;
@@ -63,7 +56,6 @@ type Student = {
   status: Status;
   alerts: AlertKind[];
   att: number;
-  exp: { kind: ExpKind; label: string };
   sc: string;
   start: string;
 };
@@ -83,7 +75,6 @@ function dtoToStudent(dto: ParticipantSummaryDto): Student {
     status: dto.status.toLowerCase() as Status,
     alerts: dto.hasDocAlerts ? ["expiring"] : [],
     att: dto.attendancePct,
-    exp: { kind: "amber", label: "—" },
     sc: "—",
     start: startLabel,
   };
@@ -363,7 +354,6 @@ export default function StudentsPage() {
                   <th>Status</th>
                   <th>Alerts</th>
                   <th className="sortable">Attendance</th>
-                  <th className="sortable">POS / IPP Expiry</th>
                   <th>Service Coord</th>
                   <th className="sortable">Started</th>
                 </tr>
@@ -371,20 +361,19 @@ export default function StudentsPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={9} style={{ textAlign: "center", padding: "32px 0", color: "var(--fg-tertiary)", fontSize: 13 }}>
+                    <td colSpan={8} style={{ textAlign: "center", padding: "32px 0", color: "var(--fg-tertiary)", fontSize: 13 }}>
                       Loading participants…
                     </td>
                   </tr>
                 ) : data.length === 0 ? (
                   <tr>
-                    <td colSpan={9} style={{ textAlign: "center", padding: "40px 0", color: "var(--fg-tertiary)", fontSize: 13 }}>
+                    <td colSpan={8} style={{ textAlign: "center", padding: "40px 0", color: "var(--fg-tertiary)", fontSize: 13 }}>
                       No participants yet — add one to get started.
                     </td>
                   </tr>
                 ) : data.map((d) => {
                   const badge = STATUS_BADGE[d.status] ?? STATUS_BADGE.active;
                   const BadgeIcon = badge.icon;
-                  const ExpIcon = EXP_ICON[d.exp.kind];
                   return (
                     <tr key={d.id}>
                       <td><span className="chk" /></td>
@@ -434,12 +423,6 @@ export default function StudentsPage() {
                         ) : (
                           <span className="ss-meta" style={{ color: "var(--fg-tertiary)" }}>—</span>
                         )}
-                      </td>
-                      <td>
-                        <span className={`exp ${d.exp.kind}`}>
-                          <ExpIcon />
-                          {d.exp.label}
-                        </span>
                       </td>
                       <td className="ss-meta">{d.sc}</td>
                       <td className="ss-meta">{d.start}</td>
