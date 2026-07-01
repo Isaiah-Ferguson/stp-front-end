@@ -14,6 +14,7 @@ export type ScriptStatus = "Active" | "Draft" | "Archived";
 export type ProjectType = "Production" | "Staff" | "Admin" | "Event";
 export type AlertSeverity = "Danger" | "Warning" | "Info";
 export type UserRole = "Staff" | "Admin";
+export type ProgressLevel = "Novice" | "Intermediate" | "Expert" | "NotApplicable";
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
@@ -286,6 +287,50 @@ export interface DashboardDto {
   events: CalendarEventDto[];
 }
 
+// ── Reports ───────────────────────────────────────────────────────────────────
+
+export interface ReportsDto {
+  totals: ReportTotalsDto;
+  programs: ProgramReportDto[];
+  staffOnboarding: StaffOnboardingReportDto[];
+  attendance: AttendanceSummaryDto;
+}
+
+export interface ReportTotalsDto {
+  totalParticipants: number;
+  activeParticipants: number;
+  prospective: number;
+  attention: number;
+  former: number;
+  programs: number;
+  staff: number;
+  fullyOnboardedStaff: number;
+  avgAttendancePct: number;
+  openTasks: number;
+  overdueTasks: number;
+}
+
+export interface ProgramReportDto {
+  slug: string;
+  name: string;
+  enrolled: number;
+  attendancePct: number;
+  sessions: number;
+}
+
+export interface StaffOnboardingReportDto {
+  name: string;
+  pct: number;
+}
+
+export interface AttendanceSummaryDto {
+  sessions: number;
+  present: number;
+  absent: number;
+  unmarked: number;
+  presentRatePct: number;
+}
+
 // ── Projects & Tasks ──────────────────────────────────────────────────────────
 
 export interface ProjectDto {
@@ -397,6 +442,35 @@ export interface CreateCalendarEventDto {
   location?: string;
   meta?: string;
   timeRange?: string;
+}
+
+// ── Taxonomy (shared skill framework) ─────────────────────────────────────────
+
+export interface SubSkillDto {
+  id: Guid;
+  objectiveAreaId: Guid;
+  name: string;
+  slug: string;
+  sectionNumber: number;
+  sortOrder: number;
+  isActive: boolean;
+  objectiveAreaName: string | null;
+  objectiveAreaColorHex: string | null;
+}
+
+export interface ObjectiveAreaDto {
+  id: Guid;
+  name: string;
+  slug: string;
+  colorHex: string;
+  sortOrder: number;
+  subSkills: SubSkillDto[];
+}
+
+export interface ReferenceListsDto {
+  objectiveAreas: ObjectiveAreaDto[];
+  subSkills: SubSkillDto[];
+  progressLevels: ProgressLevel[];
 }
 
 // ── Documents & Onboarding ────────────────────────────────────────────────────

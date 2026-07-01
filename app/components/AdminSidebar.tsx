@@ -12,6 +12,7 @@ import {
   CalendarCheck,
   Calendar,
   Drama,
+  Target,
   UserCheck,
   CheckSquare,
   BookOpen,
@@ -60,6 +61,12 @@ const SECTIONS: NavSection[] = [
     label: "Programs",
     items: [
       { href: "/programs", label: "Programs", icon: Drama },
+    ],
+  },
+  {
+    label: "Planning",
+    items: [
+      { href: "/skills", label: "Skills Framework", icon: Target },
     ],
   },
   {
