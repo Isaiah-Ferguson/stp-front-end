@@ -70,7 +70,7 @@ export default function LoginPage() {
           </div>
 
           <h2 className="text-xl font-medium text-fg mb-1">
-            Welcome back
+            Welcome back!
           </h2>
           <p className="text-sm text-fg-secondary mb-8">
             Sign in to your account to continue
