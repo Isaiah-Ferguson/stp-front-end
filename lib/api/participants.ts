@@ -4,6 +4,8 @@ import type {
   ParticipantDetailDto,
   CreateParticipantDto,
   UpdateParticipantDto,
+  ParticipantArtsProfileDto,
+  UpsertArtsProfileDto,
 } from "../types/api";
 
 export const participantsApi = {
@@ -12,4 +14,7 @@ export const participantsApi = {
   create:   (dto: CreateParticipantDto)     => api.post<ParticipantDetailDto>("/api/participants", dto),
   update:   (id: string, dto: UpdateParticipantDto) => api.put<ParticipantDetailDto>(`/api/participants/${id}`, dto),
   remove:   (id: string)                    => api.delete<void>(`/api/participants/${id}`),
+
+  getArtsProfile:    (id: string)                       => api.get<ParticipantArtsProfileDto>(`/api/participants/${id}/arts-profile`),
+  upsertArtsProfile: (id: string, dto: UpsertArtsProfileDto) => api.put<ParticipantArtsProfileDto>(`/api/participants/${id}/arts-profile`, dto),
 };

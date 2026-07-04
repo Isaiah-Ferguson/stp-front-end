@@ -15,6 +15,13 @@ export type ProjectType = "Production" | "Staff" | "Admin" | "Event";
 export type AlertSeverity = "Danger" | "Warning" | "Info";
 export type UserRole = "Staff" | "Admin";
 export type ProgressLevel = "Novice" | "Intermediate" | "Expert" | "NotApplicable";
+export type DataScore = "Refusal" | "FullPrompts" | "MinimalPrompts" | "Independent" | "NotApplicable";
+export type GameSource = "TSSP" | "Suggested";
+export type GameCategory =
+  | "Warmup" | "Circle" | "Movement" | "Name"
+  | "Icebreaker" | "Theater" | "Reset" | "SuggestedAddition";
+/** Flags enum serialized as a name or comma-separated list, e.g. "All" or "Novice, Intermediate". */
+export type GameTier = string;
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
@@ -145,6 +152,89 @@ export interface ParticipantDetailDto extends ParticipantSummaryDto {
   serviceCoordinator: string | null;
   documents: DocumentRecordDto[];
   recentAttendance: AttendanceRecordDto[];
+}
+
+export interface ParticipantArtsProfileDto {
+  participantId: Guid;
+  ippSummary: string | null;
+  currentLevel: string | null;
+  tsspArtsGoal: string | null;
+  hasProfile: boolean;
+}
+
+export interface UpsertArtsProfileDto {
+  ippSummary?: string | null;
+  currentLevel?: string | null;
+  tsspArtsGoal?: string | null;
+}
+
+// ── Progress tracking (weekly data + month-end levels) ────────────────────────
+
+export interface WeeklyDataEntryDto {
+  id: Guid;
+  participantId: Guid;
+  subSkillId: Guid;
+  sessionId: Guid | null;
+  monthKey: string;
+  weekNumber: number;
+  weekDate: string;
+  score: DataScore;
+  recordedByStaffMemberId: Guid | null;
+}
+
+export interface MonthlyProgressSnapshotDto {
+  id: Guid;
+  participantId: Guid;
+  subSkillId: Guid;
+  subSkillName: string;
+  sectionNumber: number;
+  monthKey: string;
+  level: ProgressLevel;
+  suggestedLevel: ProgressLevel;
+  summedScore: number;
+  scoredWeekCount: number;
+  isConfirmed: boolean;
+  confirmedByStaffMemberId: Guid | null;
+}
+
+export interface StarMonthDto {
+  participantId: Guid;
+  monthKey: string;
+  entries: WeeklyDataEntryDto[];
+  snapshots: MonthlyProgressSnapshotDto[];
+}
+
+export interface RecordWeeklyScoreDto {
+  participantId: Guid;
+  subSkillId: Guid;
+  monthKey: string;
+  weekNumber: number;
+  weekDate?: string | null;
+  score: DataScore;
+  sessionId?: Guid | null;
+  recordedByStaffMemberId?: Guid | null;
+}
+
+export interface ConfirmMonthEndDto {
+  subSkillId: Guid;
+  level: ProgressLevel;
+  confirmedByStaffMemberId?: Guid | null;
+}
+
+export interface WeeklyFocusSkillDto {
+  programId: Guid;
+  monthKey: string;
+  weekNumber: number;
+  subSkillId: Guid;
+  subSkillName: string;
+  sectionNumber: number;
+}
+
+export interface SetFocusSkillsDto {
+  programId: Guid;
+  monthKey: string;
+  weekNumber: number;
+  subSkillIds: Guid[];
 }
 
 export interface CreateParticipantDto {
@@ -467,10 +557,118 @@ export interface ObjectiveAreaDto {
   subSkills: SubSkillDto[];
 }
 
+export interface SiteDto {
+  id: Guid;
+  name: string;
+  slug: string;
+  sortOrder: number;
+}
+
+export interface StarGroupDto {
+  id: Guid;
+  name: string;
+  slug: string;
+  sortOrder: number;
+}
+
 export interface ReferenceListsDto {
   objectiveAreas: ObjectiveAreaDto[];
   subSkills: SubSkillDto[];
   progressLevels: ProgressLevel[];
+  sites: SiteDto[];
+  starGroups: StarGroupDto[];
+}
+
+// ── Games Library ─────────────────────────────────────────────────────────────
+
+export interface GameSubGoalDto {
+  subSkillId: Guid;
+  subSkillName: string;
+  sectionNumber: number;
+  objectiveAreaColorHex: string | null;
+  isPrimary: boolean;
+  sortOrder: number;
+}
+
+export interface GameSummaryDto {
+  id: Guid;
+  name: string;
+  source: GameSource;
+  category: GameCategory;
+  categoryLabel: string | null;
+  tiers: GameTier;
+  primaryObjectiveAreaId: Guid;
+  primaryObjectiveAreaName: string;
+  primaryObjectiveAreaColorHex: string;
+  whenToUse: string | null;
+  subGoals: GameSubGoalDto[];
+}
+
+export interface GameDetailDto extends GameSummaryDto {
+  description: string | null;
+  bestForVariations: string | null;
+}
+
+export interface GameFilter {
+  tier?: "Novice" | "Intermediate" | "Expert";
+  objectiveAreaId?: Guid;
+  subSkillId?: Guid;
+  category?: GameCategory;
+  q?: string;
+}
+
+export interface CreateGameSubGoalDto {
+  subSkillId: Guid;
+  isPrimary: boolean;
+}
+
+export interface CreateGameDto {
+  name: string;
+  source: GameSource;
+  category: GameCategory;
+  categoryLabel?: string | null;
+  /** "All" or a comma-separated list, e.g. "Novice, Intermediate". */
+  tiers: GameTier;
+  primaryObjectiveAreaId: Guid;
+  description?: string | null;
+  bestForVariations?: string | null;
+  whenToUse?: string | null;
+  subGoals: CreateGameSubGoalDto[];
+}
+
+export type UpdateGameDto = CreateGameDto;
+
+// ── Roster & Assignments ──────────────────────────────────────────────────────
+
+export interface RosterEntryDto {
+  participantId: Guid;
+  participantName: string;
+  participantInitials: string;
+  programId: Guid;
+  programName: string;
+  programSlug: string;
+  assignmentId: Guid | null;
+  siteId: Guid | null;
+  siteName: string | null;
+  starGroupId: Guid | null;
+  starGroupName: string | null;
+  assignedStaffId: Guid | null;
+  assignedStaffName: string | null;
+  countedInRatio: boolean;
+  notes: string | null;
+  quarter: number;
+  year: number;
+}
+
+export interface UpsertRosterAssignmentDto {
+  participantId: Guid;
+  quarter: number;
+  year: number;
+  siteId?: Guid | null;
+  starGroupId?: Guid | null;
+  assignedStaffId?: Guid | null;
+  countedInRatio: boolean;
+  notes?: string | null;
 }
 
 // ── Documents & Onboarding ────────────────────────────────────────────────────

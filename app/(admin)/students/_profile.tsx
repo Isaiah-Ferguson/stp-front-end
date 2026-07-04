@@ -22,6 +22,8 @@ import {
 } from "lucide-react";
 import { participantsApi } from "@/lib/api/participants";
 import { programsApi } from "@/lib/api/programs";
+import ArtsProfileWidget from "./_arts_profile";
+import TrackerWidget from "./_tracker";
 import type {
   ParticipantDetailDto,
   ProgramSummaryDto,
@@ -312,6 +314,12 @@ export default function ParticipantProfile({ id }: { id: string }) {
               </div>
             </div>
           </div>
+
+          {/* arts profile (Student Frame) */}
+          <ArtsProfileWidget participantId={id} />
+
+          {/* weekly tracker (monthly data + month-end levels) */}
+          <TrackerWidget participantId={id} />
 
           {/* documents (read-only) */}
           <div className="widget">

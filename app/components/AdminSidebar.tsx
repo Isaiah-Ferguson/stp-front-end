@@ -13,6 +13,9 @@ import {
   Calendar,
   Drama,
   Target,
+  Gamepad2,
+  ClipboardList,
+  PenLine,
   UserCheck,
   CheckSquare,
   BookOpen,
@@ -66,6 +69,9 @@ const SECTIONS: NavSection[] = [
   {
     label: "Planning",
     items: [
+      { href: "/roster", label: "Roster", icon: ClipboardList },
+      { href: "/tracker", label: "Weekly Data", icon: PenLine },
+      { href: "/games", label: "Games Library", icon: Gamepad2 },
       { href: "/skills", label: "Skills Framework", icon: Target },
     ],
   },
