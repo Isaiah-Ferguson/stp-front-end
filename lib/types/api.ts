@@ -16,6 +16,7 @@ export type AlertSeverity = "Danger" | "Warning" | "Info";
 export type UserRole = "Staff" | "Admin";
 export type ProgressLevel = "Novice" | "Intermediate" | "Expert" | "NotApplicable";
 export type DataScore = "Refusal" | "FullPrompts" | "MinimalPrompts" | "Independent" | "NotApplicable";
+export type GoalBankKind = "Strength" | "AreaForImprovement" | "NewGoal";
 export type GameSource = "TSSP" | "Suggested";
 export type GameCategory =
   | "Warmup" | "Circle" | "Movement" | "Name"
@@ -197,11 +198,157 @@ export interface MonthlyProgressSnapshotDto {
   confirmedByStaffMemberId: Guid | null;
 }
 
+export interface GoalBankEntryDto {
+  id: Guid;
+  kind: GoalBankKind;
+  sectionNumber: number;
+  level: ProgressLevel;
+  text: string;
+  hasGrowingEdge: boolean;
+}
+
+export interface WeeklyNoteSelectionDto {
+  id: Guid;
+  participantId: Guid;
+  monthKey: string;
+  weekNumber: number;
+  kind: GoalBankKind;
+  goalBankEntryId: Guid | null;
+  customText: string | null;
+  displayText: string | null;
+}
+
+export interface UpsertNoteSelectionDto {
+  weekNumber: number;
+  kind: GoalBankKind;
+  goalBankEntryId?: Guid | null;
+  customText?: string | null;
+}
+
+export interface MonthlySummaryDto {
+  participantId: Guid;
+  monthKey: string;
+  primaryLevel: ProgressLevel;
+  progressNarrative: string | null;
+  goalsCarryOver: boolean;
+  nextMonthUpdate: string | null;
+  hasSummary: boolean;
+}
+
+export interface UpsertMonthlySummaryDto {
+  primaryLevel: ProgressLevel;
+  progressNarrative?: string | null;
+  goalsCarryOver: boolean;
+  nextMonthUpdate?: string | null;
+}
+
 export interface StarMonthDto {
   participantId: Guid;
   monthKey: string;
   entries: WeeklyDataEntryDto[];
   snapshots: MonthlyProgressSnapshotDto[];
+  noteSelections: WeeklyNoteSelectionDto[];
+  monthlySummary: MonthlySummaryDto | null;
+}
+
+export interface CohortRollUpRowDto {
+  subSkillId: Guid;
+  subSkillName: string;
+  sectionNumber: number;
+  objectiveAreaName: string;
+  objectiveAreaColorHex: string;
+  noviceCount: number;
+  intermediateCount: number;
+  expertCount: number;
+  notApplicableCount: number;
+  scoredCount: number;
+  mostCommonLevel: string;
+}
+
+export interface CohortRollUpDto {
+  monthKey: string;
+  programId: Guid | null;
+  programName: string | null;
+  participantCount: number;
+  rows: CohortRollUpRowDto[];
+}
+
+// ── Game backlog (To Develop) ─────────────────────────────────────────────────
+
+export interface GameIdeaDto {
+  id: Guid;
+  name: string;
+  statusNotes: string | null;
+  sourceInspiration: string | null;
+  targetCategory: GameCategory | null;
+  teacherSuggested: boolean;
+  teacherSuggestedId: Guid | null;
+  teacherSuggestedName: string | null;
+  promotedGameId: Guid | null;
+}
+
+export interface CreateGameIdeaDto {
+  name: string;
+  statusNotes?: string | null;
+  sourceInspiration?: string | null;
+  targetCategory?: GameCategory | null;
+  teacherSuggested: boolean;
+  teacherSuggestedId?: Guid | null;
+}
+
+export interface AgeModificationDto {
+  id: Guid;
+  gameName: string;
+  groupAgeLevel: string;
+  modification: string;
+  teacherSuggested: boolean;
+  teacherSuggestedId: Guid | null;
+  teacherSuggestedName: string | null;
+  gameId: Guid | null;
+}
+
+export interface CreateAgeModificationDto {
+  gameName: string;
+  groupAgeLevel: string;
+  modification: string;
+  teacherSuggested: boolean;
+  teacherSuggestedId?: Guid | null;
+  gameId?: Guid | null;
+}
+
+// ── Per-Star planning ─────────────────────────────────────────────────────────
+
+export interface PerStarPlanDto {
+  participantId: Guid;
+  participantName: string;
+  participantInitials: string;
+  programId: Guid;
+  programName: string;
+  programSlug: string;
+  monthKey: string;
+  planId: Guid | null;
+  assignedStaffId: Guid | null;
+  assignedStaffName: string | null;
+  primaryTier: ProgressLevel;
+  priorityObjectiveAreaId: Guid | null;
+  priorityObjectiveAreaName: string | null;
+  prioritySubSkillId: Guid | null;
+  prioritySubSkillName: string | null;
+  monthlyGoal: string | null;
+  howIllSupport: string | null;
+  notes: string | null;
+}
+
+export interface UpsertPerStarPlanDto {
+  participantId: Guid;
+  monthKey: string;
+  assignedStaffId?: Guid | null;
+  primaryTier: ProgressLevel;
+  priorityObjectiveAreaId?: Guid | null;
+  prioritySubSkillId?: Guid | null;
+  monthlyGoal?: string | null;
+  howIllSupport?: string | null;
+  notes?: string | null;
 }
 
 export interface RecordWeeklyScoreDto {
@@ -532,6 +679,37 @@ export interface CreateCalendarEventDto {
   location?: string;
   meta?: string;
   timeRange?: string;
+}
+
+// ── Year Calendar (annual themes + key arts dates) ────────────────────────────
+
+export type ThemeArc = "FoundationalReset" | "SpringShow" | "Nutcracker";
+
+export interface CalendarThemeDto {
+  month: number;
+  themeTitle: string;
+  themeSubtitle: string | null;
+  keyArtsDatesText: string | null;
+  featuredGamesText: string | null;
+  alternativeOptionsText: string | null;
+  productionPhase: string | null;
+  programmingNotes: string | null;
+  legendArc: ThemeArc | null;
+}
+
+export interface KeyArtsDateDto {
+  id: Guid;
+  month: number;
+  sortOrder: number;
+  dateText: string;
+  observance: string;
+  observanceType: string | null;
+  programmingTieIn: string | null;
+}
+
+export interface YearCalendarDto {
+  themes: CalendarThemeDto[];
+  keyArtsDates: KeyArtsDateDto[];
 }
 
 // ── Taxonomy (shared skill framework) ─────────────────────────────────────────

@@ -7,6 +7,12 @@ import type {
   ConfirmMonthEndDto,
   WeeklyFocusSkillDto,
   SetFocusSkillsDto,
+  GoalBankEntryDto,
+  GoalBankKind,
+  WeeklyNoteSelectionDto,
+  UpsertNoteSelectionDto,
+  MonthlySummaryDto,
+  UpsertMonthlySummaryDto,
 } from "../types/api";
 
 export const progressApi = {
@@ -23,4 +29,20 @@ export const progressApi = {
     api.get<WeeklyFocusSkillDto[]>(`/api/progress/focus-skills?programId=${programId}&month=${encodeURIComponent(month)}`),
   setFocusSkills: (dto: SetFocusSkillsDto) =>
     api.put<WeeklyFocusSkillDto[]>("/api/progress/focus-skills", dto),
+
+  recordNote: (participantId: string, month: string, dto: UpsertNoteSelectionDto) =>
+    api.post<WeeklyNoteSelectionDto>(`/api/progress/star/${participantId}/note?month=${encodeURIComponent(month)}`, dto),
+  upsertSummary: (participantId: string, month: string, dto: UpsertMonthlySummaryDto) =>
+    api.put<MonthlySummaryDto>(`/api/progress/star/${participantId}/summary?month=${encodeURIComponent(month)}`, dto),
+};
+
+export const goalBankApi = {
+  get: (params?: { section?: number; level?: string; kind?: GoalBankKind }) => {
+    const p = new URLSearchParams();
+    if (params?.section) p.set("section", String(params.section));
+    if (params?.level) p.set("level", params.level);
+    if (params?.kind) p.set("kind", params.kind);
+    const s = p.toString();
+    return api.get<GoalBankEntryDto[]>(`/api/goal-bank${s ? `?${s}` : ""}`);
+  },
 };

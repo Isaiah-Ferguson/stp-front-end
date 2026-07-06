@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ClipboardList, RefreshCw, Check } from "lucide-react";
-import { progressApi } from "@/lib/api/progress";
+import { progressApi, goalBankApi } from "@/lib/api/progress";
 import { taxonomyApi } from "@/lib/api/taxonomy";
 import type {
   ObjectiveAreaDto,
@@ -11,7 +11,28 @@ import type {
   MonthlyProgressSnapshotDto,
   DataScore,
   ProgressLevel,
+  GoalBankEntryDto,
+  GoalBankKind,
+  WeeklyNoteSelectionDto,
+  MonthlySummaryDto,
+  UpsertMonthlySummaryDto,
 } from "@/lib/types/api";
+
+const NOTE_WEEKS = [1, 2, 3, 4];
+const NOTE_KINDS: { kind: GoalBankKind; label: string }[] = [
+  { kind: "Strength", label: "Strengths observed" },
+  { kind: "AreaForImprovement", label: "Areas for improvement" },
+  { kind: "NewGoal", label: "New goals for next week" },
+];
+
+function sumFrom(s: MonthlySummaryDto | null | undefined): UpsertMonthlySummaryDto {
+  return {
+    primaryLevel: s?.primaryLevel ?? "NotApplicable",
+    progressNarrative: s?.progressNarrative ?? "",
+    goalsCarryOver: s?.goalsCarryOver ?? true,
+    nextMonthUpdate: s?.nextMonthUpdate ?? "",
+  };
+}
 
 const WEEKS = [1, 2, 3, 4, 5];
 
@@ -47,13 +68,17 @@ export default function TrackerWidget({ participantId }: { participantId: string
   const [loading, setLoading] = useState(true);
   const [computing, setComputing] = useState(false);
   const [error, setError] = useState(false);
+  const [goalBank, setGoalBank] = useState<GoalBankEntryDto[]>([]);
+  const [summaryForm, setSummaryForm] = useState<UpsertMonthlySummaryDto>(sumFrom(null));
+  const [savingSummary, setSavingSummary] = useState(false);
 
   useEffect(() => { taxonomyApi.getObjectiveAreas().then(setAreas).catch(() => setAreas([])); }, []);
+  useEffect(() => { goalBankApi.get().then(setGoalBank).catch(() => setGoalBank([])); }, []);
 
   useEffect(() => {
     setLoading(true);
     progressApi.getStarMonth(participantId, month)
-      .then((d) => { setData(d); setError(false); })
+      .then((d) => { setData(d); setError(false); setSummaryForm(sumFrom(d.monthlySummary)); })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [participantId, month]);
@@ -74,6 +99,28 @@ export default function TrackerWidget({ participantId }: { participantId: string
     () => areas.filter((a) => a.subSkills.length > 0).sort((a, b) => a.sortOrder - b.sortOrder),
     [areas]
   );
+
+  const noteMap = useMemo(() => {
+    const m = new Map<string, WeeklyNoteSelectionDto>();
+    data?.noteSelections.forEach((n) => m.set(`${n.kind}:${n.weekNumber}`, n));
+    return m;
+  }, [data]);
+
+  function recordNote(kind: GoalBankKind, week: number, goalBankEntryId: string) {
+    progressApi.recordNote(participantId, month, { weekNumber: week, kind, goalBankEntryId: goalBankEntryId || null })
+      .then((saved) => setData((prev) => prev
+        ? { ...prev, noteSelections: [...prev.noteSelections.filter((n) => !(n.kind === kind && n.weekNumber === week)), saved] }
+        : prev))
+      .catch(() => {});
+  }
+
+  function saveSummary() {
+    setSavingSummary(true);
+    progressApi.upsertSummary(participantId, month, summaryForm)
+      .then((saved) => setData((prev) => (prev ? { ...prev, monthlySummary: saved } : prev)))
+      .catch(() => {})
+      .finally(() => setSavingSummary(false));
+  }
 
   function recordScore(subSkillId: string, week: number, score: DataScore) {
     progressApi.recordWeekly({ participantId, subSkillId, monthKey: month, weekNumber: week, score })
@@ -150,6 +197,84 @@ export default function TrackerWidget({ participantId }: { participantId: string
             <div style={{ marginTop: "var(--space-3)", fontSize: "var(--fs-meta)", color: "var(--fg-tertiary)", lineHeight: "var(--lh-body)" }}>
               Data: <strong>0</strong> Refusal · <strong>1</strong> Full prompts · <strong>2</strong> Minimal prompts · <strong>3</strong> Independent · <strong>N/A</strong> not targeted.
               Month-end suggests a level from the average of scored weeks — confirm or override it.
+            </div>
+
+            {/* Section 6 — weekly notes */}
+            <div style={{ marginTop: "var(--space-5)", borderTop: "0.5px solid var(--border)", paddingTop: "var(--space-4)" }}>
+              <div className="ss-label" style={{ marginBottom: "var(--space-3)", color: "var(--fg-secondary)" }}>Section 6 · Weekly notes</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+                {NOTE_KINDS.map(({ kind, label }) => (
+                  <div key={kind}>
+                    <div style={{ fontSize: "var(--fs-body)", fontWeight: "var(--w-medium)", marginBottom: 6 }}>{label}</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "var(--space-2)" }}>
+                      {NOTE_WEEKS.map((w) => {
+                        const sel = noteMap.get(`${kind}:${w}`);
+                        const opts = goalBank.filter((g) => g.kind === kind);
+                        const groups = [...new Set(opts.map((g) => `S${g.sectionNumber} · ${levelLabel(g.level)}`))];
+                        return (
+                          <label key={w} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                            <span style={{ fontSize: "var(--fs-label)", letterSpacing: "var(--ls-label)", textTransform: "uppercase", color: "var(--fg-tertiary)" }}>Week {w}</span>
+                            <select
+                              value={sel?.goalBankEntryId ?? ""}
+                              onChange={(e) => recordNote(kind, w, e.target.value)}
+                              style={{ border: "0.5px solid var(--border-hover)", borderRadius: "var(--r-md)", padding: "6px 8px", fontSize: 12, color: "var(--fg)", background: "var(--surface)", outline: "none", width: "100%" }}
+                            >
+                              <option value="">— none —</option>
+                              {groups.map((g) => (
+                                <optgroup key={g} label={g}>
+                                  {opts.filter((o) => `S${o.sectionNumber} · ${levelLabel(o.level)}` === g).map((o) => (
+                                    <option key={o.id} value={o.id}>{o.text}</option>
+                                  ))}
+                                </optgroup>
+                              ))}
+                            </select>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Monthly summary */}
+            <div style={{ marginTop: "var(--space-5)", borderTop: "0.5px solid var(--border)", paddingTop: "var(--space-4)" }}>
+              <div style={{ display: "flex", alignItems: "center", marginBottom: "var(--space-3)" }}>
+                <div className="ss-label" style={{ color: "var(--fg-secondary)" }}>Monthly summary</div>
+                <button type="button" className="ss-btn ss-btn-primary" style={{ marginLeft: "auto" }} onClick={saveSummary} disabled={savingSummary}>
+                  <Check className="ss-btn-icon" />{savingSummary ? "Saving…" : "Save summary"}
+                </button>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", maxWidth: 620 }}>
+                <div>
+                  <div className="ss-label" style={{ marginBottom: 6 }}>Primary level for the month</div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {LEVELS.map((l) => (
+                      <button key={l.value} type="button" className={`ss-chip${summaryForm.primaryLevel === l.value ? " is-active" : ""}`} style={{ cursor: "pointer" }}
+                        onClick={() => setSummaryForm((f) => ({ ...f, primaryLevel: l.value }))}>{l.label}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div className="ss-label" style={{ marginBottom: 6 }}>Progress this month</div>
+                  <textarea rows={2} value={summaryForm.progressNarrative ?? ""} onChange={(e) => setSummaryForm((f) => ({ ...f, progressNarrative: e.target.value }))}
+                    style={{ width: "100%", boxSizing: "border-box", border: "0.5px solid var(--border-hover)", borderRadius: "var(--r-md)", padding: "8px 12px", fontSize: 13, color: "var(--fg)", background: "var(--surface)", outline: "none", resize: "vertical", lineHeight: "var(--lh-body)" }} />
+                </div>
+                <div>
+                  <div className="ss-label" style={{ marginBottom: 6 }}>Goals carry over to next month?</div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button type="button" className={`ss-chip${summaryForm.goalsCarryOver ? " is-active" : ""}`} style={{ cursor: "pointer" }} onClick={() => setSummaryForm((f) => ({ ...f, goalsCarryOver: true }))}>Yes — carry over</button>
+                    <button type="button" className={`ss-chip${!summaryForm.goalsCarryOver ? " is-active" : ""}`} style={{ cursor: "pointer" }} onClick={() => setSummaryForm((f) => ({ ...f, goalsCarryOver: false }))}>No — update</button>
+                  </div>
+                </div>
+                {!summaryForm.goalsCarryOver && (
+                  <div>
+                    <div className="ss-label" style={{ marginBottom: 6 }}>What&apos;s new for next month</div>
+                    <textarea rows={2} value={summaryForm.nextMonthUpdate ?? ""} onChange={(e) => setSummaryForm((f) => ({ ...f, nextMonthUpdate: e.target.value }))}
+                      style={{ width: "100%", boxSizing: "border-box", border: "0.5px solid var(--border-hover)", borderRadius: "var(--r-md)", padding: "8px 12px", fontSize: 13, color: "var(--fg)", background: "var(--surface)", outline: "none", resize: "vertical", lineHeight: "var(--lh-body)" }} />
+                  </div>
+                )}
+              </div>
             </div>
           </>
         )}
