@@ -27,6 +27,7 @@ import {
   Settings,
   LogOut,
   UserCog,
+  ChevronDown,
   type LucideIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -110,6 +111,13 @@ export default function AdminSidebar() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const [open, setOpen] = useState(false);
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(
+    () => Object.fromEntries(SECTIONS.map((s) => [s.label, false]))
+  );
+
+  function toggleSection(label: string) {
+    setOpenSections((prev) => ({ ...prev, [label]: !prev[label] }));
+  }
 
   function handleLogout() {
     logout();
@@ -180,34 +188,49 @@ export default function AdminSidebar() {
       </div>
 
       <div className="adm-nav">
-        {sections.map((section) => (
-          <div className="ss-nav-section" key={section.label}>
-            <div className="ss-nav-section-label">{section.label}</div>
-            {section.items.map((item) => {
-              const Icon = item.icon;
-              const base = item.href.split("?")[0];
-              const isActive = pathname === base;
-              return (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  className={`ss-nav-item${isActive ? " is-active" : ""}`}
-                >
-                  {Icon ? <Icon className="ss-nav-icon" /> : null}
-                  {item.dot ? (
-                    <span className={`ss-dot ${item.dot}`} style={{ margin: "0 1px" }} />
-                  ) : null}
-                  <span className="ss-nav-label">{item.label}</span>
-                  {item.badge ? (
-                    <span className={`ss-nav-badge ${item.badge.tone}`}>
-                      {item.badge.text}
-                    </span>
-                  ) : null}
-                </Link>
-              );
-            })}
-          </div>
-        ))}
+        {sections.map((section) => {
+          const isOpen = openSections[section.label] ?? false;
+          return (
+            <div className="ss-nav-section" key={section.label}>
+              <button
+                type="button"
+                className="ss-nav-section-label"
+                aria-expanded={isOpen}
+                onClick={() => toggleSection(section.label)}
+              >
+                <span>{section.label}</span>
+                <ChevronDown className={`ss-nav-section-chevron${isOpen ? " is-open" : ""}`} />
+              </button>
+              {isOpen ? (
+                <div className="ss-nav-section-items">
+                  {section.items.map((item) => {
+                    const Icon = item.icon;
+                    const base = item.href.split("?")[0];
+                    const isActive = pathname === base;
+                    return (
+                      <Link
+                        key={item.label}
+                        href={item.href}
+                        className={`ss-nav-item${isActive ? " is-active" : ""}`}
+                      >
+                        {Icon ? <Icon className="ss-nav-icon" /> : null}
+                        {item.dot ? (
+                          <span className={`ss-dot ${item.dot}`} style={{ margin: "0 1px" }} />
+                        ) : null}
+                        <span className="ss-nav-label">{item.label}</span>
+                        {item.badge ? (
+                          <span className={`ss-nav-badge ${item.badge.tone}`}>
+                            {item.badge.text}
+                          </span>
+                        ) : null}
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
 
       <div className="adm-foot">
