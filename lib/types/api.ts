@@ -707,6 +707,18 @@ export interface KeyArtsDateDto {
   programmingTieIn: string | null;
 }
 
+export interface UpsertCalendarThemeDto {
+  month: number;
+  themeTitle: string;
+  themeSubtitle?: string | null;
+  keyArtsDatesText?: string | null;
+  featuredGamesText?: string | null;
+  alternativeOptionsText?: string | null;
+  productionPhase?: string | null;
+  programmingNotes?: string | null;
+  legendArc?: ThemeArc | null;
+}
+
 export interface YearCalendarDto {
   themes: CalendarThemeDto[];
   keyArtsDates: KeyArtsDateDto[];

@@ -44,7 +44,7 @@ export default function PlanningPage() {
   const [savingId, setSavingId] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([programsApi.getAll(), staffApi.getAll(), taxonomyApi.getObjectiveAreas()])
+    Promise.all([programsApi.getMine(), staffApi.getAll(), taxonomyApi.getObjectiveAreas()])
       .then(([p, s, a]) => { setPrograms(p); setStaff(s); setAreas(a); })
       .catch(() => {});
   }, []);

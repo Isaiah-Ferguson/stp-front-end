@@ -48,7 +48,7 @@ export default function WeeklyDataPage() {
 
   // Bootstrap: programs, participants, taxonomy.
   useEffect(() => {
-    Promise.all([programsApi.getAll(), participantsApi.getAll(), taxonomyApi.getObjectiveAreas()])
+    Promise.all([programsApi.getMine(), participantsApi.getAll(), taxonomyApi.getObjectiveAreas()])
       .then(([progs, parts, ar]) => {
         setPrograms(progs);
         setAllParticipants(parts);

@@ -8,6 +8,7 @@ import type {
 
 export const programsApi = {
   getAll:    ()           => api.get<ProgramSummaryDto[]>("/api/programs"),
+  getMine:   ()           => api.get<ProgramSummaryDto[]>("/api/programs/mine"),
   getBySlug: (slug: string) => api.get<ProgramSummaryDto>(`/api/programs/${slug}`),
   getDetail: (slug: string) => api.get<ProgramDetailDto>(`/api/programs/${slug}/detail`),
   create:    (dto: CreateProgramDto) => api.post<ProgramSummaryDto>("/api/programs", dto),

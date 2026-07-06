@@ -71,6 +71,7 @@ export default function TrackerWidget({ participantId }: { participantId: string
   const [goalBank, setGoalBank] = useState<GoalBankEntryDto[]>([]);
   const [summaryForm, setSummaryForm] = useState<UpsertMonthlySummaryDto>(sumFrom(null));
   const [savingSummary, setSavingSummary] = useState(false);
+  const [customCells, setCustomCells] = useState<Set<string>>(new Set()); // `${kind}:${week}` in custom-text mode
 
   useEffect(() => { taxonomyApi.getObjectiveAreas().then(setAreas).catch(() => setAreas([])); }, []);
   useEffect(() => { goalBankApi.get().then(setGoalBank).catch(() => setGoalBank([])); }, []);
@@ -106,8 +107,8 @@ export default function TrackerWidget({ participantId }: { participantId: string
     return m;
   }, [data]);
 
-  function recordNote(kind: GoalBankKind, week: number, goalBankEntryId: string) {
-    progressApi.recordNote(participantId, month, { weekNumber: week, kind, goalBankEntryId: goalBankEntryId || null })
+  function saveNote(kind: GoalBankKind, week: number, goalBankEntryId: string | null, customText: string | null) {
+    progressApi.recordNote(participantId, month, { weekNumber: week, kind, goalBankEntryId, customText })
       .then((saved) => setData((prev) => prev
         ? { ...prev, noteSelections: [...prev.noteSelections.filter((n) => !(n.kind === kind && n.weekNumber === week)), saved] }
         : prev))
@@ -208,26 +209,38 @@ export default function TrackerWidget({ participantId }: { participantId: string
                     <div style={{ fontSize: "var(--fs-body)", fontWeight: "var(--w-medium)", marginBottom: 6 }}>{label}</div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "var(--space-2)" }}>
                       {NOTE_WEEKS.map((w) => {
-                        const sel = noteMap.get(`${kind}:${w}`);
+                        const cellKey = `${kind}:${w}`;
+                        const sel = noteMap.get(cellKey);
                         const opts = goalBank.filter((g) => g.kind === kind);
                         const groups = [...new Set(opts.map((g) => `S${g.sectionNumber} · ${levelLabel(g.level)}`))];
+                        const inputStyle = { border: "0.5px solid var(--border-hover)", borderRadius: "var(--r-md)", padding: "6px 8px", fontSize: 12, color: "var(--fg)", background: "var(--surface)", outline: "none", width: "100%" } as React.CSSProperties;
+                        const isCustom = customCells.has(cellKey) || (!!sel && !sel.goalBankEntryId && !!sel.customText);
                         return (
                           <label key={w} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                             <span style={{ fontSize: "var(--fs-label)", letterSpacing: "var(--ls-label)", textTransform: "uppercase", color: "var(--fg-tertiary)" }}>Week {w}</span>
-                            <select
-                              value={sel?.goalBankEntryId ?? ""}
-                              onChange={(e) => recordNote(kind, w, e.target.value)}
-                              style={{ border: "0.5px solid var(--border-hover)", borderRadius: "var(--r-md)", padding: "6px 8px", fontSize: 12, color: "var(--fg)", background: "var(--surface)", outline: "none", width: "100%" }}
-                            >
-                              <option value="">— none —</option>
-                              {groups.map((g) => (
-                                <optgroup key={g} label={g}>
-                                  {opts.filter((o) => `S${o.sectionNumber} · ${levelLabel(o.level)}` === g).map((o) => (
-                                    <option key={o.id} value={o.id}>{o.text}</option>
-                                  ))}
-                                </optgroup>
-                              ))}
-                            </select>
+                            {isCustom ? (
+                              <div style={{ display: "flex", gap: 4 }}>
+                                <input defaultValue={sel?.customText ?? ""} placeholder="Type a note…" autoFocus={customCells.has(cellKey)}
+                                  onBlur={(e) => { const v = e.target.value.trim() || null; if (v !== (sel?.customText ?? null)) saveNote(kind, w, null, v); }}
+                                  style={{ ...inputStyle, flex: 1 }} />
+                                <button type="button" title="Use a preset instead" onClick={() => { setCustomCells((s) => { const n = new Set(s); n.delete(cellKey); return n; }); if (sel?.customText) saveNote(kind, w, null, null); }}
+                                  style={{ background: "none", border: "0.5px solid var(--border-hover)", borderRadius: "var(--r-md)", cursor: "pointer", color: "var(--fg-tertiary)", padding: "0 8px" }}>✕</button>
+                              </div>
+                            ) : (
+                              <select value={sel?.goalBankEntryId ?? ""}
+                                onChange={(e) => { if (e.target.value === "__custom__") setCustomCells((s) => new Set(s).add(cellKey)); else saveNote(kind, w, e.target.value || null, null); }}
+                                style={inputStyle}>
+                                <option value="">— none —</option>
+                                <option value="__custom__">✎ Custom…</option>
+                                {groups.map((g) => (
+                                  <optgroup key={g} label={g}>
+                                    {opts.filter((o) => `S${o.sectionNumber} · ${levelLabel(o.level)}` === g).map((o) => (
+                                      <option key={o.id} value={o.id}>{o.text}</option>
+                                    ))}
+                                  </optgroup>
+                                ))}
+                              </select>
+                            )}
                           </label>
                         );
                       })}

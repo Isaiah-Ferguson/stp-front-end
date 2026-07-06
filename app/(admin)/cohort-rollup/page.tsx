@@ -53,7 +53,7 @@ export default function CohortRollUpPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  useEffect(() => { programsApi.getAll().then(setPrograms).catch(() => setPrograms([])); }, []);
+  useEffect(() => { programsApi.getMine().then(setPrograms).catch(() => setPrograms([])); }, []);
 
   useEffect(() => {
     setLoading(true);
