@@ -55,12 +55,7 @@ const SECTIONS: NavSection[] = [
     label: "Main",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      {
-        href: "/students",
-        label: "Students",
-        icon: Users,
-        badge: { text: "3", tone: "is-danger" },
-      },
+      { href: "/students", label: "Students", icon: Users },
       { href: "/attendance", label: "Attendance", icon: CalendarCheck },
       { href: "/calendar", label: "Calendar", icon: Calendar },
     ],
@@ -87,12 +82,7 @@ const SECTIONS: NavSection[] = [
   {
     label: "Staff",
     items: [
-      {
-        href: "/staff",
-        label: "Onboarding",
-        icon: UserCheck,
-        badge: { text: "2", tone: "is-warning" },
-      },
+      { href: "/staff", label: "Onboarding", icon: UserCheck },
       { href: "/tasks", label: "Tasks", icon: CheckSquare },
       { href: "/documents", label: "Scripts", icon: BookOpen },
     ],

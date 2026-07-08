@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { scriptsApi } from "@/lib/api/scripts";
+import { programsApi } from "@/lib/api/programs";
+import type {
+  ScriptDto,
+  ScriptType as ApiScriptType,
+  ScriptStatus as ApiScriptStatus,
+} from "@/lib/types/api";
 import {
   BookOpen,
   Search,
@@ -158,6 +165,59 @@ const INITIAL_SCRIPTS: Script[] = [
     status: "archived",
   },
 ];
+
+// ── API ↔ local model mapping (#18) ─────────────────────────────────────────────
+// This page keeps its own lowercase unions; the API uses PascalCase enums and program
+// GUIDs. These helpers bridge the two so the page can show and persist real data while
+// the existing demo (INITIAL_SCRIPTS) remains the fallback if the API is empty/unreachable.
+
+const API_TYPE_TO_LOCAL: Record<ApiScriptType, ScriptType> = {
+  Musical: "musical",
+  Play: "play",
+  Scene: "scene",
+  Skit: "skit",
+};
+const LOCAL_TYPE_TO_API: Record<ScriptType, ApiScriptType> = {
+  musical: "Musical",
+  play: "Play",
+  scene: "Scene",
+  skit: "Skit",
+};
+const API_STATUS_TO_LOCAL: Record<ApiScriptStatus, ScriptStatus> = {
+  Active: "active",
+  Draft: "draft",
+  Archived: "archived",
+};
+const LOCAL_STATUS_TO_API: Record<ScriptStatus, ApiScriptStatus> = {
+  active: "Active",
+  draft: "Draft",
+  archived: "Archived",
+};
+
+/** Maps a program's display name to the local Prog tag (best-effort; unknown → productions). */
+function progFromName(name: string): Prog {
+  const n = name.toLowerCase();
+  if (n.includes("mjc")) return "mjc";
+  if (n.includes("pathways")) return "pathways";
+  if (n.includes("manteca")) return "manteca";
+  return "productions";
+}
+
+function scriptFromDto(dto: ScriptDto): Script {
+  return {
+    title: dto.title,
+    subtitle: dto.subtitle ?? undefined,
+    type: API_TYPE_TO_LOCAL[dto.type] ?? "play",
+    adapted: dto.isAdapted,
+    original: dto.isOriginal,
+    programs: Array.from(new Set((dto.programNames ?? []).map(progFromName))),
+    castMin: dto.castMin ?? undefined,
+    castMax: dto.castMax ?? undefined,
+    duration: dto.duration ?? "TBD",
+    lastUsed: dto.lastUsed ?? "—",
+    status: API_STATUS_TO_LOCAL[dto.status] ?? "draft",
+  };
+}
 
 const STATUS_FILTERS = ["all", "active", "archived", "draft"] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
@@ -981,6 +1041,34 @@ export default function DocumentsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [selectedScript, setSelectedScript] = useState<Script | null>(null);
+  // program slug → GUID, so newly-created scripts can be linked to real programs.
+  const [progIdBySlug, setProgIdBySlug] = useState<Record<string, string>>({});
+
+  // Load real scripts from the API (#18). If the library is empty or the backend is
+  // unreachable, the seeded demo (INITIAL_SCRIPTS) stays on screen so the UI never breaks.
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const [dtos, programs] = await Promise.all([
+          scriptsApi.getAll(),
+          programsApi.getAll().catch(() => []),
+        ]);
+        if (!active) return;
+        if (Array.isArray(dtos) && dtos.length > 0) {
+          setScripts(dtos.map(scriptFromDto));
+        }
+        setProgIdBySlug(
+          Object.fromEntries((programs ?? []).map((p) => [p.slug, p.id]))
+        );
+      } catch {
+        // Keep the demo data — do not clear the UI on an API error.
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const visible = useMemo(
     () =>
@@ -1021,9 +1109,29 @@ export default function DocumentsPage() {
       status: form.status,
     };
 
+    // Optimistically show it immediately so the demo stays snappy.
     setScripts((prev) => [newScript, ...prev]);
     setStatusFilter(form.status);
     closeModal();
+
+    // Persist to the library (#18), best-effort — a backend error must not lose the UI entry.
+    const programIds = form.programs
+      .map((p) => progIdBySlug[p])
+      .filter((id): id is string => Boolean(id));
+    scriptsApi
+      .create({
+        title: newScript.title,
+        subtitle: newScript.subtitle,
+        type: LOCAL_TYPE_TO_API[form.type],
+        status: LOCAL_STATUS_TO_API[form.status],
+        isOriginal: newScript.original,
+        isAdapted: newScript.adapted,
+        castMin: min,
+        castMax: max,
+        duration: form.duration.trim() || undefined,
+        programIds,
+      })
+      .catch((err) => console.error("Failed to save script to the library:", err));
   }
 
   return (
