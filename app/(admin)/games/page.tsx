@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search, X, Sparkles, Target, Plus, Pencil } from "lucide-react";
 import { gamesApi } from "@/lib/api/games";
-import { taxonomyApi } from "@/lib/api/taxonomy";
+import { useObjectiveAreas } from "@/lib/api/hooks";
 import GameEditorModal from "./_editor";
 import type {
   GameSummaryDto,
@@ -38,7 +38,8 @@ function tierList(tiers: string): string[] {
 }
 
 export default function GamesLibraryPage() {
-  const [areas, setAreas] = useState<ObjectiveAreaDto[]>([]);
+  // Cached + shared via React Query (#34).
+  const areas: ObjectiveAreaDto[] = useObjectiveAreas().data ?? [];
   const [games, setGames] = useState<GameSummaryDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -57,9 +58,6 @@ export default function GamesLibraryPage() {
   const [reload, setReload] = useState(0);
 
   // Objective areas power the colour-coded filter chips (and the editor's area/sub-goal pickers).
-  useEffect(() => {
-    taxonomyApi.getObjectiveAreas().then(setAreas).catch(() => setAreas([]));
-  }, []);
 
   // Debounce the free-text search.
   useEffect(() => {

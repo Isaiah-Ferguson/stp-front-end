@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { BarChart3 } from "lucide-react";
 import { cohortApi } from "@/lib/api/cohort";
-import { programsApi } from "@/lib/api/programs";
+import { useMyPrograms } from "@/lib/api/hooks";
 import type { CohortRollUpDto, CohortRollUpRowDto, ProgramSummaryDto } from "@/lib/types/api";
 
 // Ordinal "mastery" ramp (light -> dark = more developed). Validated: CVD ΔE 17.2,
@@ -48,12 +48,11 @@ function LevelBadge({ level }: { level: string }) {
 export default function CohortRollUpPage() {
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [programId, setProgramId] = useState<string | null>(null);
-  const [programs, setPrograms] = useState<ProgramSummaryDto[]>([]);
+  // Cached + shared via React Query (#34).
+  const programs: ProgramSummaryDto[] = useMyPrograms().data ?? [];
   const [data, setData] = useState<CohortRollUpDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-
-  useEffect(() => { programsApi.getMine().then(setPrograms).catch(() => setPrograms([])); }, []);
 
   useEffect(() => {
     setLoading(true);

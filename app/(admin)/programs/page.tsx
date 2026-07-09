@@ -1,10 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AlertCircle, ChevronRight, Plus, X, Pencil, Check } from "lucide-react";
 import { programsApi } from "@/lib/api/programs";
+import { usePrograms, queryKeys } from "@/lib/api/hooks";
+import LoadError from "@/app/components/LoadError";
+import { ApiError } from "@/lib/api/client";
 import type { ProgramSummaryDto, CreateProgramDto, UpdateProgramDto } from "@/lib/types/api";
 
 // ── Color palette ─────────────────────────────────────────────────────────────
@@ -275,17 +279,14 @@ function ProgramFormModal({
 
 export default function ProgramsPage() {
   const router = useRouter();
-  const [programs, setPrograms] = useState<ProgramCard[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Cached + shared with every other page that lists programs (#34).
+  const queryClient = useQueryClient();
+  const programsQ = usePrograms();
+  const loading = programsQ.isPending;
+  const programs = useMemo(() => (programsQ.data ?? []).map(dtoToCard), [programsQ.data]);
   const [mode, setMode] = useState<"create" | "edit" | null>(null);
   const [editing, setEditing] = useState<ProgramCard | null>(null);
-
-  useEffect(() => {
-    programsApi.getAll()
-      .then((data) => setPrograms(data.map(dtoToCard)))
-      .catch(() => setPrograms([]))
-      .finally(() => setLoading(false));
-  }, []);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   function closeModal() { setMode(null); setEditing(null); }
 
@@ -306,48 +307,31 @@ export default function ProgramsPage() {
   }
 
   async function handleSubmit(form: ProgForm) {
+    setSaveError(null);
+
     if (mode === "edit" && editing) {
       const dto: UpdateProgramDto = { ...buildPayload(form) };
       try {
-        const updated = await programsApi.update(editing.id, dto);
-        setPrograms((prev) => prev.map((p) => (p.id === updated.id ? dtoToCard(updated) : p)));
-      } catch {
-        // optimistic local update if the API call fails
-        setPrograms((prev) => prev.map((p) => (p.id === editing.id ? {
-          ...p,
-          label: form.name.trim(),
-          color: colorFromHex(buildPayload(form).colorHex),
-          meetingDays: form.days.length ? form.days.join(", ") : "None",
-          startTime: form.start ? `${form.start}:00` : null,
-          endTime: form.end ? `${form.end}:00` : null,
-          location: form.location.trim(),
-          schedule: form.days.length ? scheduleLabel(form.days) : "—",
-        } : p)));
+        await programsApi.update(editing.id, dto);
+        queryClient.invalidateQueries({ queryKey: queryKeys.programs });
+      } catch (e) {
+        // A failed save must not masquerade as a successful one (#35).
+        setSaveError(e instanceof ApiError && e.detail ? e.detail : "Couldn't save the program — try again.");
       }
       closeModal();
       return;
     }
 
     // create
-    const payload = buildPayload(form);
-    const dto: CreateProgramDto = payload;
+    const dto: CreateProgramDto = buildPayload(form);
     try {
       const created = await programsApi.create(dto);
-      setPrograms((prev) => [dtoToCard(created), ...prev]);
+      queryClient.invalidateQueries({ queryKey: queryKeys.programs });
       closeModal();
       router.push(`/programs/${created.slug}`);
-    } catch {
-      const slug = form.name.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-      setPrograms((prev) => [{
-        id: slug, slug, label: form.name.trim(), enrolled: 0, attendance: null,
-        schedule: form.days.length ? scheduleLabel(form.days) : "TBD", nextSession: "TBD",
-        nextMeta: form.location.trim() || "Location TBD", alertCount: 0,
-        color: colorFromHex(payload.colorHex),
-        meetingDays: payload.meetingDays, startTime: payload.startTime ?? null,
-        endTime: payload.endTime ?? null, location: form.location.trim(),
-      }, ...prev]);
+    } catch (e) {
+      setSaveError(e instanceof ApiError && e.detail ? e.detail : "Couldn't create the program — try again.");
       closeModal();
-      router.push(`/programs/${slug}`);
     }
   }
 
@@ -385,10 +369,36 @@ export default function ProgramsPage() {
         </div>
 
         <div className="adm-content">
+          {saveError && (
+            <div
+              role="alert"
+              style={{
+                marginBottom: "var(--space-4)", padding: "10px 14px", borderRadius: "var(--r-md)",
+                background: "var(--danger-fill, #fce8e8)", color: "var(--danger)", fontSize: 13,
+                display: "flex", alignItems: "center", gap: 8,
+              }}
+            >
+              <AlertCircle style={{ width: 14, height: 14, flexShrink: 0 }} />
+              {saveError}
+              <button
+                onClick={() => setSaveError(null)}
+                aria-label="Dismiss"
+                style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "inherit", display: "inline-flex" }}
+              >
+                <X style={{ width: 14, height: 14 }} />
+              </button>
+            </div>
+          )}
           {loading ? (
             <div className="prog-grid">
               {[1, 2, 3].map((i) => <div key={i} className="prog-skeleton" />)}
             </div>
+          ) : programsQ.isError ? (
+            <LoadError
+              title="Couldn't load programs"
+              error={programsQ.error}
+              onRetry={() => programsQ.refetch()}
+            />
           ) : (
             <div className="prog-grid">
               {programs.map((p) => (

@@ -21,7 +21,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { attendanceApi } from "@/lib/api/attendance";
-import { programsApi } from "@/lib/api/programs";
+import { usePrograms } from "@/lib/api/hooks";
 import { ApiError } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useEscapeKey } from "@/lib/useEscapeKey";
@@ -91,7 +91,8 @@ export default function AttendancePage() {
   useEscapeKey(() => setNoteFor(null), noteFor !== null && !savingNote);
 
   // ad-hoc
-  const [programs, setPrograms] = useState<ProgramSummaryDto[]>([]);
+  // Cached + shared via React Query (#34).
+  const programs: ProgramSummaryDto[] = usePrograms().data ?? [];
   const [adhocId, setAdhocId] = useState<string>("");
   const [adhocOpen, setAdhocOpen] = useState(false);
 
@@ -108,7 +109,6 @@ export default function AttendancePage() {
   }, []);
 
   useEffect(() => { loadCards(date); }, [date, loadCards]);
-  useEffect(() => { programsApi.getAll().then(setPrograms).catch(() => setPrograms([])); }, []);
 
   function changeDate(d: string) {
     setSelected(null);

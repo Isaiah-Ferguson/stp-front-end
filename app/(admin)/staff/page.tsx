@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Download,
   UserPlus,
@@ -18,7 +19,9 @@ import {
   Trash2,
 } from "lucide-react";
 import { staffApi } from "@/lib/api/staff";
-import { programsApi } from "@/lib/api/programs";
+import { useStaff, usePrograms, queryKeys } from "@/lib/api/hooks";
+import LoadError from "@/app/components/LoadError";
+import { ApiError } from "@/lib/api/client";
 import type {
   StaffSummaryDto,
   StaffDetailDto,
@@ -422,32 +425,29 @@ function AddStaffModal({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function StaffPage() {
-  const [staffList, setStaffList] = useState<StaffSummaryDto[]>([]);
-  const [programs, setPrograms] = useState<ProgramSummaryDto[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState<string | null>(null);
+  // Cached + shared via React Query (#34).
+  const queryClient = useQueryClient();
+  const staffQ = useStaff();
+  const programsQ = usePrograms();
+  const staffList: StaffSummaryDto[] = staffQ.data ?? [];
+  const programs: ProgramSummaryDto[] = programsQ.data ?? [];
+  const loading = staffQ.isPending || programsQ.isPending;
+  // "auto" = expand the first in-progress onboarding once data arrives; explicit
+  // values take over as soon as the user toggles anything.
+  const [expandedRaw, setExpandedRaw] = useState<string | null | "auto">("auto");
+  const expanded = expandedRaw === "auto"
+    ? staffList.find((s) => s.onboardingProgressPct > 0 && s.onboardingProgressPct < 100)?.fullName ?? null
+    : expandedRaw;
   const [detailCache, setDetailCache] = useState<Record<string, StaffDetailDto>>({});
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<AddStaffForm>(EMPTY_STAFF_FORM);
   const [templateOpen, setTemplateOpen] = useState(false);
   const [template, setTemplate] = useState<TemplateSection[]>(DEFAULT_TEMPLATE);
-
-  useEffect(() => {
-    Promise.all([staffApi.getAll(), programsApi.getAll()])
-      .then(([staff, progs]) => {
-        setStaffList(staff);
-        setPrograms(progs);
-        // auto-expand first staff member with in-progress onboarding
-        const first = staff.find((s) => s.onboardingProgressPct > 0 && s.onboardingProgressPct < 100);
-        if (first) setExpanded(first.fullName);
-      })
-      .catch(() => { setStaffList([]); setPrograms([]); })
-      .finally(() => setLoading(false));
-  }, []);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   async function handleToggle(id: string, name: string) {
     const isExpanding = expanded !== name;
-    setExpanded((cur) => (cur === name ? null : name));
+    setExpandedRaw(expanded === name ? null : name);
     if (isExpanding && !detailCache[id]) {
       try {
         const detail = await staffApi.getById(id);
@@ -468,21 +468,13 @@ export default function StaffPage() {
       programIds: form.programIds,
     };
 
+    setSaveError(null);
     try {
-      const created = await staffApi.create(dto);
-      setStaffList((prev) => [created, ...prev]);
-    } catch {
-      const progNames = programs.filter((p) => form.programIds.includes(p.id)).map((p) => p.name);
-      const placeholder: StaffSummaryDto = {
-        id: "temp-" + Math.random().toString(36).slice(2),
-        fullName: form.nm.trim(),
-        initials: toInitials(form.nm),
-        role: form.role as StaffRole,
-        startDate: form.startDate || new Date().toISOString().split("T")[0],
-        onboardingProgressPct: 0,
-        programNames: progNames,
-      };
-      setStaffList((prev) => [placeholder, ...prev]);
+      await staffApi.create(dto);
+      queryClient.invalidateQueries({ queryKey: queryKeys.staff });
+    } catch (e) {
+      // A failed save must not fabricate a placeholder row (#35).
+      setSaveError(e instanceof ApiError && e.detail ? e.detail : "Couldn't add the staff member — try again.");
     }
     closeModal();
   }
@@ -530,10 +522,27 @@ export default function StaffPage() {
 
         <div className="staff-layout">
           <div className="staff-main">
+            {saveError && (
+              <div
+                role="alert"
+                style={{
+                  marginBottom: "var(--space-3)", padding: "10px 14px", borderRadius: "var(--r-md)",
+                  background: "var(--danger-fill, #fce8e8)", color: "var(--danger)", fontSize: 13,
+                }}
+              >
+                {saveError}
+              </div>
+            )}
             {loading ? (
               <div style={{ padding: "40px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>
                 Loading staff…
               </div>
+            ) : staffQ.isError ? (
+              <LoadError
+                title="Couldn't load staff"
+                error={staffQ.error}
+                onRetry={() => staffQ.refetch()}
+              />
             ) : staffList.length === 0 ? (
               <div style={{ padding: "40px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>
                 No staff members yet — add one to get started.

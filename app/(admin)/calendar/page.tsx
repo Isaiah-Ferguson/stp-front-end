@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Plus, ChevronLeft, ChevronRight, MapPin, Clock, X } from "lucide-react";
 import { calendarApi } from "@/lib/api/calendar";
-import { programsApi } from "@/lib/api/programs";
+import { usePrograms } from "@/lib/api/hooks";
 import type { CalendarEventDto, ProgramSummaryDto, CreateCalendarEventDto } from "@/lib/types/api";
 
 // ── Calendar math ─────────────────────────────────────────────────────────────
@@ -174,15 +174,11 @@ export default function CalendarPage() {
   const [viewYear,  setViewYear]  = useState(today.year);
   const [viewMonth, setViewMonth] = useState(today.month);
   const [events,    setEvents]    = useState<CalendarEventDto[]>([]);
-  const [programs,  setPrograms]  = useState<ProgramSummaryDto[]>([]);
+  // Cached + shared via React Query (#34).
+  const programs: ProgramSummaryDto[] = usePrograms().data ?? [];
   const [loading,   setLoading]   = useState(true);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [addOpen, setAddOpen] = useState(false);
-
-  // Load programs once
-  useEffect(() => {
-    programsApi.getAll().then(setPrograms).catch(() => {});
-  }, []);
 
   // Reload events whenever the viewed month changes
   useEffect(() => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   BarChart3,
   Users,
@@ -17,7 +17,8 @@ import Widget from "../components/Widget";
 import StatCard from "../components/StatCard";
 import BarChart from "../components/BarChart";
 import StaffList from "../components/StaffList";
-import { reportsApi } from "@/lib/api/reports";
+import { useReports } from "@/lib/api/hooks";
+import LoadError from "@/app/components/LoadError";
 import { participantsApi } from "@/lib/api/participants";
 import type { ReportsDto } from "@/lib/types/api";
 
@@ -33,16 +34,11 @@ function EmptyRow({ text }: { text: string }) {
 }
 
 export default function ReportsPage() {
-  const [report, setReport] = useState<ReportsDto | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Cached via React Query (#34); failures render as an explicit error (#35).
+  const reportQ = useReports();
+  const report: ReportsDto | null = reportQ.data ?? null;
+  const loading = reportQ.isPending;
   const [exporting, setExporting] = useState(false);
-
-  useEffect(() => {
-    reportsApi.get()
-      .then(setReport)
-      .catch(() => setReport(null))
-      .finally(() => setLoading(false));
-  }, []);
 
   const dash = (v: React.ReactNode) => (loading ? "…" : v);
 
@@ -150,6 +146,13 @@ export default function ReportsPage() {
       </div>
 
       <div className="adm-content">
+        {reportQ.isError && (
+          <LoadError
+            title="Couldn't load reports"
+            error={reportQ.error}
+            onRetry={() => reportQ.refetch()}
+          />
+        )}
         {/* KPI grid */}
         <div className="adm-statgrid">
           <StatCard

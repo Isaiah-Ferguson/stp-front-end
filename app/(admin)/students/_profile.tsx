@@ -21,7 +21,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { participantsApi } from "@/lib/api/participants";
-import { programsApi } from "@/lib/api/programs";
+import { usePrograms } from "@/lib/api/hooks";
 import ArtsProfileWidget from "./_arts_profile";
 import TrackerWidget from "./_tracker";
 import type {
@@ -69,7 +69,8 @@ export default function ParticipantProfile({ id }: { id: string }) {
   const router = useRouter();
 
   const [detail, setDetail] = useState<ParticipantDetailDto | null>(null);
-  const [programs, setPrograms] = useState<ProgramSummaryDto[]>([]);
+  // Cached + shared via React Query (#34).
+  const programs: ProgramSummaryDto[] = usePrograms().data ?? [];
   const [loading, setLoading] = useState(true);
   const [missing, setMissing] = useState(false);
 
@@ -83,11 +84,10 @@ export default function ParticipantProfile({ id }: { id: string }) {
 
   useEffect(() => {
     let active = true;
-    Promise.all([participantsApi.getById(id), programsApi.getAll().catch(() => [] as ProgramSummaryDto[])])
-      .then(([d, p]) => {
+    participantsApi.getById(id)
+      .then((d) => {
         if (!active) return;
         setDetail(d);
-        setPrograms(p);
         setForm(formFrom(d));
       })
       .catch(() => { if (active) setMissing(true); })

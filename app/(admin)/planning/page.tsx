@@ -3,9 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Target, Check } from "lucide-react";
 import { planningApi } from "@/lib/api/planning";
-import { programsApi } from "@/lib/api/programs";
-import { staffApi } from "@/lib/api/staff";
-import { taxonomyApi } from "@/lib/api/taxonomy";
+import { useMyPrograms, useStaff, useObjectiveAreas } from "@/lib/api/hooks";
 import type {
   PerStarPlanDto,
   ProgramSummaryDto,
@@ -36,18 +34,13 @@ export default function PlanningPage() {
   const [programId, setProgramId] = useState<string | null>(null);
 
   const [plans, setPlans] = useState<PerStarPlanDto[]>([]);
-  const [programs, setPrograms] = useState<ProgramSummaryDto[]>([]);
-  const [staff, setStaff] = useState<StaffSummaryDto[]>([]);
-  const [areas, setAreas] = useState<ObjectiveAreaDto[]>([]);
+  // Cached + shared via React Query (#34).
+  const programs: ProgramSummaryDto[] = useMyPrograms().data ?? [];
+  const staff: StaffSummaryDto[] = useStaff().data ?? [];
+  const areas: ObjectiveAreaDto[] = useObjectiveAreas().data ?? [];
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
-
-  useEffect(() => {
-    Promise.all([programsApi.getMine(), staffApi.getAll(), taxonomyApi.getObjectiveAreas()])
-      .then(([p, s, a]) => { setPrograms(p); setStaff(s); setAreas(a); })
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     setLoading(true);

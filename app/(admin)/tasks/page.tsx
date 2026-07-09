@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   FolderPlus,
   Plus,
@@ -18,7 +19,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { tasksApi } from "@/lib/api/tasks";
-import { staffApi } from "@/lib/api/staff";
+import { useProjects, useStaff, queryKeys } from "@/lib/api/hooks";
+import LoadError from "@/app/components/LoadError";
+import { ApiError } from "@/lib/api/client";
 import type {
   ProjectDto,
   ProjectTaskDto,
@@ -312,32 +315,25 @@ function AddTaskModal({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function TasksPage() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [staffList, setStaffList] = useState<StaffSummaryDto[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [collapsed, setCollapsed] = useState<boolean[]>([]);
+  // Cached + shared via React Query (#34).
+  const queryClient = useQueryClient();
+  const projectsQ = useProjects();
+  const staffQ = useStaff();
+  const staffList: StaffSummaryDto[] = staffQ.data ?? [];
+  const projects = useMemo(
+    () => (projectsQ.data ?? []).map((p) => dtoToProject(p, staffQ.data ?? [])),
+    [projectsQ.data, staffQ.data]
+  );
+  const loading = projectsQ.isPending || staffQ.isPending;
+  // Keyed by project id; projects start collapsed.
+  const [collapsedMap, setCollapsedMap] = useState<Record<string, boolean>>({});
   const [doneTasks, setDoneTasks] = useState<Record<string, boolean>>({});
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<AddTaskForm>(EMPTY_TASK_FORM);
   const [typeFilter, setTypeFilter] = useState<"all" | "production" | "staff" | "admin" | "event">("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [overdueOnly, setOverdueOnly] = useState(false);
-
-  useEffect(() => {
-    Promise.all([tasksApi.getProjects(), staffApi.getAll()])
-      .then(([projs, staff]) => {
-        const mapped = projs.map((p) => dtoToProject(p, staff));
-        setProjects(mapped);
-        setCollapsed(mapped.map(() => true));
-        setStaffList(staff);
-      })
-      .catch(() => {
-        setProjects([]);
-        setCollapsed([]);
-        setStaffList([]);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // derived stats
   const allTasks = projects.flatMap((p) => p.tasks);
@@ -349,8 +345,9 @@ export default function TasksPage() {
     blocked:  allTasks.filter((t) => t.status === "blocked").length,
   };
 
-  const toggleProject = (i: number) =>
-    setCollapsed((prev) => prev.map((c, idx) => (idx === i ? !c : c)));
+  const isCollapsed = (id: string) => collapsedMap[id] ?? true;
+  const toggleProject = (id: string) =>
+    setCollapsedMap((prev) => ({ ...prev, [id]: !isCollapsed(id) }));
   const toggleTask = (key: string) =>
     setDoneTasks((prev) => ({ ...prev, [key]: !prev[key] }));
 
@@ -363,30 +360,9 @@ export default function TasksPage() {
   async function handleSubmit() {
     if (form.projectIdx === null) return;
     const proj = projects[form.projectIdx];
-    const assignee = staffList.find((s) => s.id === form.assigneeId);
-
-    const task: Task = {
-      name: form.name.trim(),
-      ctx: form.ctx.trim() || undefined,
-      ai: assignee?.initials ?? "?",
-      ar: assignee?.role.toLowerCase() ?? "admin",
-      an: assignee?.fullName ?? "Unassigned",
-      due: formatDueDate(form.due || null),
-      status: form.status,
-      overdue: false,
-      prio: form.prio,
-    };
-
-    // optimistic update
-    setProjects((prev) => prev.map((p, i) =>
-      i === form.projectIdx ? { ...p, tasks: [...p.tasks, task] } : p
-    ));
-    if (collapsed[form.projectIdx]) {
-      setCollapsed((prev) => prev.map((c, i) => (i === form.projectIdx ? false : c)));
-    }
+    setCollapsedMap((prev) => ({ ...prev, [proj.id]: false }));
     closeModal();
 
-    // fire and forget to API
     try {
       await tasksApi.addTask(proj.id, {
         projectId: proj.id,
@@ -396,7 +372,11 @@ export default function TasksPage() {
         priority: PRIO_API_MAP[form.prio] as "High" | "Medium" | "Low",
         dueDate: form.due || undefined,
       });
-    } catch { /* optimistic add already visible */ }
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects });
+    } catch (e) {
+      // A failed save must not silently look successful (#35).
+      setSaveError(e instanceof ApiError && e.detail ? e.detail : "Couldn't save the task — try again.");
+    }
   }
 
   return (
@@ -474,10 +454,27 @@ export default function TasksPage() {
           <div className="board-stat"><span className="num amber">{stats.blocked}</span><span className="label">Blocked</span></div>
         </div>
 
+        {saveError && (
+          <div
+            role="alert"
+            style={{
+              marginBottom: "var(--space-3)", padding: "10px 14px", borderRadius: "var(--r-md)",
+              background: "var(--danger-fill, #fce8e8)", color: "var(--danger)", fontSize: 13,
+            }}
+          >
+            {saveError}
+          </div>
+        )}
         {loading ? (
           <div style={{ padding: "40px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>
             Loading projects…
           </div>
+        ) : projectsQ.isError ? (
+          <LoadError
+            title="Couldn't load projects"
+            error={projectsQ.error}
+            onRetry={() => projectsQ.refetch()}
+          />
         ) : projects.length === 0 ? (
           <div style={{ padding: "40px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>
             No projects yet — create one to get started.
@@ -504,8 +501,8 @@ export default function TasksPage() {
           return filteredItems.map(({ p, idx }) => {
           const ProjIcon = p.icon;
           return (
-            <div className={`proj${collapsed[idx] ? " is-collapsed" : ""}`} key={p.id}>
-              <div className="proj-head" onClick={() => toggleProject(idx)}>
+            <div className={`proj${isCollapsed(p.id) ? " is-collapsed" : ""}`} key={p.id}>
+              <div className="proj-head" onClick={() => toggleProject(p.id)}>
                 <span className="proj-chev"><ChevronDown /></span>
                 <span className={`proj-icon ${p.iconcls}`}><ProjIcon /></span>
                 <div className="proj-titlewrap">

@@ -2,9 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { PenLine, Check, X } from "lucide-react";
-import { programsApi } from "@/lib/api/programs";
-import { participantsApi } from "@/lib/api/participants";
-import { taxonomyApi } from "@/lib/api/taxonomy";
+import { useMyPrograms, useParticipants, useObjectiveAreas } from "@/lib/api/hooks";
 import { progressApi } from "@/lib/api/progress";
 import type {
   ProgramSummaryDto,
@@ -30,11 +28,15 @@ const cellSelect: React.CSSProperties = {
 };
 
 export default function WeeklyDataPage() {
-  const [programs, setPrograms] = useState<ProgramSummaryDto[]>([]);
-  const [allParticipants, setAllParticipants] = useState<ParticipantSummaryDto[]>([]);
-  const [areas, setAreas] = useState<ObjectiveAreaDto[]>([]);
+  // Cached + shared via React Query (#34).
+  const programs: ProgramSummaryDto[] = useMyPrograms().data ?? [];
+  const allParticipants: ParticipantSummaryDto[] = useParticipants().data ?? [];
+  const areas: ObjectiveAreaDto[] = useObjectiveAreas().data ?? [];
 
-  const [programId, setProgramId] = useState<string>("");
+  // Defaults to the user's first program once the list arrives; explicit choice wins.
+  const [programIdRaw, setProgramIdRaw] = useState<string>("");
+  const programId = programIdRaw || (programs[0]?.id ?? "");
+  const setProgramId = setProgramIdRaw;
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [week, setWeek] = useState(1);
 
@@ -47,18 +49,6 @@ export default function WeeklyDataPage() {
   const [savingFocus, setSavingFocus] = useState(false);
 
   // Bootstrap: programs, participants, taxonomy.
-  useEffect(() => {
-    Promise.all([programsApi.getMine(), participantsApi.getAll(), taxonomyApi.getObjectiveAreas()])
-      .then(([progs, parts, ar]) => {
-        setPrograms(progs);
-        setAllParticipants(parts);
-        setAreas(ar);
-        if (progs.length && !programId) setProgramId(progs[0].id);
-      })
-      .catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const participants = useMemo(
     () => allParticipants.filter((p) => p.programId === programId).sort((a, b) => a.fullName.localeCompare(b.fullName)),
     [allParticipants, programId]

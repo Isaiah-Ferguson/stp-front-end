@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import {
   Plus,
@@ -22,7 +22,8 @@ import StaffList from "../components/StaffList";
 import Widget from "../components/Widget";
 import StatCard from "../components/StatCard";
 import BarChart from "../components/BarChart";
-import { dashboardApi } from "@/lib/api/dashboard";
+import { useDashboard } from "@/lib/api/hooks";
+import LoadError from "@/app/components/LoadError";
 import type {
   ParticipantSummaryDto,
   AttendanceRosterEntryDto,
@@ -53,27 +54,16 @@ function EmptyRow({ text }: { text: string }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const [loading, setLoading] = useState(true);
-  const [participants, setParticipants] = useState<ParticipantSummaryDto[]>([]);
-  const [roster, setRoster] = useState<AttendanceRosterEntryDto[]>([]);
-  const [projects, setProjects] = useState<ProjectDto[]>([]);
-  const [staff, setStaff] = useState<StaffSummaryDto[]>([]);
-  const [programs, setPrograms] = useState<ProgramSummaryDto[]>([]);
-  const [events, setEvents] = useState<CalendarEventDto[]>([]);
-
-  useEffect(() => {
-    dashboardApi.get()
-      .then((d) => {
-        setParticipants(d.participants);
-        setRoster(d.todayRoster);
-        setProjects(d.projects);
-        setStaff(d.staff);
-        setPrograms(d.programs);
-        setEvents(d.events);
-      })
-      .catch(() => { /* leave empty state */ })
-      .finally(() => setLoading(false));
-  }, []);
+  // Cached + deduplicated via React Query (#34); errors surface instead of
+  // rendering as fake empty stats (#35).
+  const dashboard = useDashboard();
+  const loading = dashboard.isPending;
+  const participants: ParticipantSummaryDto[] = dashboard.data?.participants ?? [];
+  const roster: AttendanceRosterEntryDto[] = dashboard.data?.todayRoster ?? [];
+  const projects: ProjectDto[] = dashboard.data?.projects ?? [];
+  const staff: StaffSummaryDto[] = dashboard.data?.staff ?? [];
+  const programs: ProgramSummaryDto[] = dashboard.data?.programs ?? [];
+  const events: CalendarEventDto[] = dashboard.data?.events ?? [];
 
   const progSlugById = useMemo(
     () => Object.fromEntries(programs.map((p) => [p.id, p.slug])),
@@ -239,6 +229,13 @@ export default function DashboardPage() {
       </div>
 
       <div className="adm-content">
+        {dashboard.isError && (
+          <LoadError
+            title="Couldn't load the dashboard"
+            error={dashboard.error}
+            onRetry={() => dashboard.refetch()}
+          />
+        )}
         {/* stat grid */}
         <div className="adm-statgrid">
           <StatCard

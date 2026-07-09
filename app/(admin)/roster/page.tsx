@@ -3,8 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Users2, Check } from "lucide-react";
 import { rosterApi } from "@/lib/api/roster";
-import { taxonomyApi } from "@/lib/api/taxonomy";
-import { staffApi } from "@/lib/api/staff";
+import { useReferenceLists, useStaff } from "@/lib/api/hooks";
 import type {
   RosterEntryDto,
   SiteDto,
@@ -26,20 +25,16 @@ export default function RosterPage() {
   const [quarter, setQuarter] = useState(Math.floor(now.getMonth() / 3) + 1);
 
   const [entries, setEntries] = useState<RosterEntryDto[]>([]);
-  const [sites, setSites] = useState<SiteDto[]>([]);
-  const [groups, setGroups] = useState<StarGroupDto[]>([]);
-  const [staff, setStaff] = useState<StaffSummaryDto[]>([]);
+  // Cached + shared via React Query (#34).
+  const lists = useReferenceLists().data;
+  const sites: SiteDto[] = lists?.sites ?? [];
+  const groups: StarGroupDto[] = lists?.starGroups ?? [];
+  const staff: StaffSummaryDto[] = useStaff().data ?? [];
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
 
   // Reference lists + staff load once.
-  useEffect(() => {
-    Promise.all([taxonomyApi.getLists(), staffApi.getAll()])
-      .then(([lists, s]) => { setSites(lists.sites); setGroups(lists.starGroups); setStaff(s); })
-      .catch(() => { /* selects fall back to empty */ });
-  }, []);
-
   // Roster reloads on term change.
   useEffect(() => {
     setLoading(true);

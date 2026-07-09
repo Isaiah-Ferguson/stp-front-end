@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+
 import {
   Users, CalendarCheck, AlertCircle, AlertTriangle,
   Plus, Minus, Check, Clock,
   UserCheck, CheckCircle2,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { programsApi } from "@/lib/api/programs";
 import type { ProgramDetailDto } from "@/lib/types/api";
 
@@ -16,18 +17,13 @@ export type ProgramSlug = string;
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function ProgramHub({ slug }: { slug: ProgramSlug }) {
-  const [detail, setDetail] = useState<ProgramDetailDto | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    programsApi.getDetail(slug)
-      .then((d) => { if (active) setDetail(d); })
-      .catch(() => { if (active) setDetail(null); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [slug]);
+  // Cached per-slug via React Query (#34); revisiting a program is instant.
+  const detailQ = useQuery({
+    queryKey: ["program-detail", slug],
+    queryFn: () => programsApi.getDetail(slug),
+  });
+  const detail: ProgramDetailDto | null = detailQ.data ?? null;
+  const loading = detailQ.isPending;
 
   const colorVar  = `var(--${slug})`;
   const fillVar   = `var(--${slug}-fill)`;

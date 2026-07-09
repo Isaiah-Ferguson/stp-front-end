@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import {
   UserPlus,
@@ -20,6 +21,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { participantsApi } from "@/lib/api/participants";
+import { useParticipants, usePrograms, queryKeys } from "@/lib/api/hooks";
+import LoadError from "@/app/components/LoadError";
 import { programsApi } from "@/lib/api/programs";
 import type {
   ParticipantSummaryDto,
@@ -208,25 +211,16 @@ function AddStudentModal({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function StudentsPage() {
-  const [data, setData] = useState<Student[]>([]);
-  const [programs, setPrograms] = useState<ProgramSummaryDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Cached + shared across pages via React Query (#34).
+  const queryClient = useQueryClient();
+  const participantsQ = useParticipants();
+  const programsQ = usePrograms();
+  const loading = participantsQ.isPending || programsQ.isPending;
+  const data = useMemo(() => (participantsQ.data ?? []).map(dtoToStudent), [participantsQ.data]);
+  const programs: ProgramSummaryDto[] = programsQ.data ?? [];
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<AddStudentForm>(EMPTY_FORM);
   const [submitError, setSubmitError] = useState<string | null>(null);
-
-  useEffect(() => {
-    Promise.all([participantsApi.getAll(), programsApi.getAll()])
-      .then(([pts, progs]) => {
-        setData(pts.map(dtoToStudent));
-        setPrograms(progs);
-      })
-      .catch(() => {
-        setData([]);
-        setPrograms([]);
-      })
-      .finally(() => setLoading(false));
-  }, []);
 
   const counts = {
     all:         data.length,
@@ -253,8 +247,9 @@ export default function StudentsPage() {
     };
 
     try {
-      const created = await participantsApi.create(dto);
-      setData((prev) => [dtoToStudent(created), ...prev]);
+      await participantsApi.create(dto);
+      // The cached list is stale now — refetch it (#34).
+      queryClient.invalidateQueries({ queryKey: queryKeys.participants });
       closeModal();
     } catch {
       setSubmitError("Could not save participant — check that the backend is running and try again.");
@@ -363,6 +358,16 @@ export default function StudentsPage() {
                   <tr>
                     <td colSpan={8} style={{ textAlign: "center", padding: "32px 0", color: "var(--fg-tertiary)", fontSize: 13 }}>
                       Loading participants…
+                    </td>
+                  </tr>
+                ) : participantsQ.isError ? (
+                  <tr>
+                    <td colSpan={8}>
+                      <LoadError
+                        title="Couldn't load participants"
+                        error={participantsQ.error}
+                        onRetry={() => participantsQ.refetch()}
+                      />
                     </td>
                   </tr>
                 ) : data.length === 0 ? (

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   UserPlus,
   ShieldCheck,
@@ -17,7 +18,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { authApi } from "@/lib/api/auth";
-import { staffApi } from "@/lib/api/staff";
+import { useUsers, useStaff, queryKeys } from "@/lib/api/hooks";
+import LoadError from "@/app/components/LoadError";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { initialsOf } from "@/lib/format";
 import { useEscapeKey } from "@/lib/useEscapeKey";
@@ -504,23 +506,19 @@ function DeleteUserModal({
 export default function UsersPage() {
   const { isAdmin, loading: authLoading, user: currentUser } = useAuth();
 
-  const [users, setUsers] = useState<UserDto[]>([]);
-  const [staff, setStaff] = useState<StaffSummaryDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Cached via React Query (#34); the users query only runs for admins.
+  const queryClient = useQueryClient();
+  const usersQ = useUsers(!authLoading && isAdmin);
+  const staffQ = useStaff();
+  const users: UserDto[] = usersQ.data ?? [];
+  const staff: StaffSummaryDto[] = staffQ.data ?? [];
+  const loading = usersQ.isPending;
+  const refreshUsers = () => queryClient.invalidateQueries({ queryKey: queryKeys.users });
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<UserDto | null>(null);
   const [resetting, setResetting] = useState<UserDto | null>(null);
   const [deleting, setDeleting] = useState<UserDto | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (authLoading || !isAdmin) return;
-    setLoading(true);
-    Promise.all([authApi.listUsers(), staffApi.getAll().catch(() => [])])
-      .then(([u, s]) => { setUsers(u); setStaff(s); })
-      .catch(() => setUsers([]))
-      .finally(() => setLoading(false));
-  }, [authLoading, isAdmin]);
 
   // Non-admins never see the roster.
   if (!authLoading && !isAdmin) {
@@ -584,6 +582,16 @@ export default function UsersPage() {
                     <tr>
                       <td colSpan={5} style={{ textAlign: "center", padding: "32px 0", color: "var(--fg-tertiary)", fontSize: 13 }}>
                         Loading users…
+                      </td>
+                    </tr>
+                  ) : usersQ.isError ? (
+                    <tr>
+                      <td colSpan={5}>
+                        <LoadError
+                          title="Couldn't load users"
+                          error={usersQ.error}
+                          onRetry={() => usersQ.refetch()}
+                        />
                       </td>
                     </tr>
                   ) : users.length === 0 ? (
@@ -658,7 +666,7 @@ export default function UsersPage() {
           staff={staff}
           onClose={() => setModalOpen(false)}
           onCreated={(u) => {
-            setUsers((prev) => [u, ...prev]);
+            refreshUsers();
             setNotice(`Created account for ${u.fullName}.`);
             setModalOpen(false);
           }}
@@ -671,7 +679,7 @@ export default function UsersPage() {
           isSelf={currentUser?.id === editing.id}
           onClose={() => setEditing(null)}
           onSaved={(u) => {
-            setUsers((prev) => prev.map((x) => (x.id === u.id ? u : x)));
+            refreshUsers();
             setNotice(`Updated ${u.fullName}.`);
             setEditing(null);
           }}
@@ -694,7 +702,7 @@ export default function UsersPage() {
           target={deleting}
           onClose={() => setDeleting(null)}
           onDeleted={() => {
-            setUsers((prev) => prev.filter((x) => x.id !== deleting.id));
+            refreshUsers();
             setNotice(`Deleted ${deleting.fullName}.`);
             setDeleting(null);
           }}
