@@ -20,6 +20,7 @@ import { authApi } from "@/lib/api/auth";
 import { staffApi } from "@/lib/api/staff";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { initialsOf } from "@/lib/format";
+import { useEscapeKey } from "@/lib/useEscapeKey";
 import type {
   UserDto,
   StaffSummaryDto,
@@ -88,6 +89,7 @@ function CreateUserModal({
 }) {
   const [form, setForm] = useState<CreateForm>(EMPTY_FORM);
   const [showPw, setShowPw] = useState(false);
+  useEscapeKey(onClose);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -131,28 +133,28 @@ function CreateUserModal({
       style={{ position: "fixed", inset: 0, background: "rgba(43,42,38,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: "var(--space-4)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div style={{ background: "var(--surface)", borderRadius: "var(--r-lg)", width: "min(460px, 100%)", display: "flex", flexDirection: "column", border: "0.5px solid var(--border-hover)", maxHeight: "90vh" }}>
+      <div role="dialog" aria-modal="true" aria-label="Create user" style={{ background: "var(--surface)", borderRadius: "var(--r-lg)", width: "min(460px, 100%)", display: "flex", flexDirection: "column", border: "0.5px solid var(--border-hover)", maxHeight: "90vh" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "var(--space-4)", borderBottom: "0.5px solid var(--border)", flexShrink: 0 }}>
           <div>
             <h3 style={{ fontSize: 15, fontWeight: 500, margin: "0 0 2px" }}>Create user</h3>
             <div style={{ fontSize: 12, color: "var(--fg-tertiary)" }}>They can sign in with this email and password</div>
           </div>
-          <button type="button" onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--fg-tertiary)", padding: 4, borderRadius: "var(--r-sm)" }}>
+          <button type="button" onClick={onClose} aria-label="Close" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--fg-tertiary)", padding: 4, borderRadius: "var(--r-sm)" }}>
             <X style={{ width: 16, height: 16 }} />
           </button>
         </div>
 
         <div style={{ padding: "var(--space-4)", display: "flex", flexDirection: "column", gap: "var(--space-4)", overflowY: "auto" }}>
           <div>
-            <div className="ss-label" style={{ marginBottom: 6 }}>Full name <span style={{ color: "var(--danger)", fontWeight: 400 }}>*</span></div>
-            <input type="text" placeholder="e.g. Jamie Diaz" value={form.fullName}
+            <label className="ss-label" htmlFor="cu-name" style={{ display: "block", marginBottom: 6 }}>Full name <span style={{ color: "var(--danger)", fontWeight: 400 }}>*</span></label>
+            <input id="cu-name" type="text" placeholder="e.g. Jamie Diaz" value={form.fullName}
               onChange={(e) => setForm(f => ({ ...f, fullName: e.target.value }))}
               style={inputStyle} autoFocus />
           </div>
 
           <div>
-            <div className="ss-label" style={{ marginBottom: 6 }}>Email <span style={{ color: "var(--danger)", fontWeight: 400 }}>*</span></div>
-            <input type="email" placeholder="you@shiningstarsprogram.org" value={form.email}
+            <label className="ss-label" htmlFor="cu-email" style={{ display: "block", marginBottom: 6 }}>Email <span style={{ color: "var(--danger)", fontWeight: 400 }}>*</span></label>
+            <input id="cu-email" type="email" placeholder="you@shiningstarsprogram.org" value={form.email}
               onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))}
               style={inputStyle} />
             {form.email.length > 0 && !emailValid && (
@@ -161,12 +163,12 @@ function CreateUserModal({
           </div>
 
           <div>
-            <div className="ss-label" style={{ marginBottom: 6 }}>Temporary password <span style={{ color: "var(--danger)", fontWeight: 400 }}>*</span></div>
+            <label className="ss-label" htmlFor="cu-password" style={{ display: "block", marginBottom: 6 }}>Temporary password <span style={{ color: "var(--danger)", fontWeight: 400 }}>*</span></label>
             <div style={{ position: "relative" }}>
-              <input type={showPw ? "text" : "password"} placeholder="At least 8 characters" value={form.password}
+              <input id="cu-password" type={showPw ? "text" : "password"} placeholder="At least 8 characters" value={form.password}
                 onChange={(e) => setForm(f => ({ ...f, password: e.target.value }))}
                 style={{ ...inputStyle, paddingRight: 38 }} />
-              <button type="button" onClick={() => setShowPw(v => !v)} tabIndex={-1}
+              <button type="button" onClick={() => setShowPw(v => !v)} tabIndex={-1} aria-label={showPw ? "Hide password" : "Show password"}
                 style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--fg-tertiary)", padding: 4, display: "inline-flex" }}>
                 {showPw ? <EyeOff style={{ width: 15, height: 15 }} /> : <Eye style={{ width: 15, height: 15 }} />}
               </button>
@@ -206,10 +208,10 @@ function CreateUserModal({
 
           {staff.length > 0 && (
             <div>
-              <div className="ss-label" style={{ marginBottom: 6 }}>
+              <label className="ss-label" htmlFor="cu-staff" style={{ display: "block", marginBottom: 6 }}>
                 Link to staff record <span style={{ fontSize: 11, color: "var(--fg-tertiary)", fontWeight: 400 }}>Optional</span>
-              </div>
-              <select value={form.staffMemberId}
+              </label>
+              <select id="cu-staff" value={form.staffMemberId}
                 onChange={(e) => setForm(f => ({ ...f, staffMemberId: e.target.value }))}
                 style={{ ...inputStyle, appearance: "auto" }}>
                 <option value="">Not linked</option>
@@ -255,6 +257,7 @@ function EditUserModal({
 }) {
   const [fullName, setFullName] = useState(target.fullName);
   const [role, setRole] = useState<UserRole>(target.role);
+  useEscapeKey(onClose);
   const [isActive, setIsActive] = useState(target.isActive);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -277,21 +280,21 @@ function EditUserModal({
 
   return (
     <div style={overlayStyle} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{ background: "var(--surface)", borderRadius: "var(--r-lg)", width: "min(440px, 100%)", display: "flex", flexDirection: "column", border: "0.5px solid var(--border-hover)", maxHeight: "90vh" }}>
+      <div role="dialog" aria-modal="true" aria-label="Edit user" style={{ background: "var(--surface)", borderRadius: "var(--r-lg)", width: "min(440px, 100%)", display: "flex", flexDirection: "column", border: "0.5px solid var(--border-hover)", maxHeight: "90vh" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "var(--space-4)", borderBottom: "0.5px solid var(--border)", flexShrink: 0 }}>
           <div>
             <h3 style={{ fontSize: 15, fontWeight: 500, margin: "0 0 2px" }}>Edit user</h3>
             <div style={{ fontSize: 12, color: "var(--fg-tertiary)" }}>{target.email}</div>
           </div>
-          <button type="button" onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--fg-tertiary)", padding: 4, borderRadius: "var(--r-sm)" }}>
+          <button type="button" onClick={onClose} aria-label="Close" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--fg-tertiary)", padding: 4, borderRadius: "var(--r-sm)" }}>
             <X style={{ width: 16, height: 16 }} />
           </button>
         </div>
 
         <div style={{ padding: "var(--space-4)", display: "flex", flexDirection: "column", gap: "var(--space-4)", overflowY: "auto" }}>
           <div>
-            <div className="ss-label" style={{ marginBottom: 6 }}>Full name</div>
-            <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} style={inputStyle} />
+            <label className="ss-label" htmlFor="eu-name" style={{ display: "block", marginBottom: 6 }}>Full name</label>
+            <input id="eu-name" type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} style={inputStyle} />
           </div>
 
           <div>
@@ -379,6 +382,7 @@ function ResetPasswordModal({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const valid = password.length >= MIN_PASSWORD;
+  useEscapeKey(onClose);
 
   async function handleSubmit() {
     setSaving(true);
@@ -395,23 +399,23 @@ function ResetPasswordModal({
 
   return (
     <div style={overlayStyle} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{ background: "var(--surface)", borderRadius: "var(--r-lg)", width: "min(420px, 100%)", display: "flex", flexDirection: "column", border: "0.5px solid var(--border-hover)" }}>
+      <div role="dialog" aria-modal="true" aria-label="Reset password" style={{ background: "var(--surface)", borderRadius: "var(--r-lg)", width: "min(420px, 100%)", display: "flex", flexDirection: "column", border: "0.5px solid var(--border-hover)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "var(--space-4)", borderBottom: "0.5px solid var(--border)" }}>
           <div>
             <h3 style={{ fontSize: 15, fontWeight: 500, margin: "0 0 2px" }}>Reset password</h3>
             <div style={{ fontSize: 12, color: "var(--fg-tertiary)" }}>{target.fullName} · {target.email}</div>
           </div>
-          <button type="button" onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--fg-tertiary)", padding: 4 }}>
+          <button type="button" onClick={onClose} aria-label="Close" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--fg-tertiary)", padding: 4 }}>
             <X style={{ width: 16, height: 16 }} />
           </button>
         </div>
 
         <div style={{ padding: "var(--space-4)" }}>
-          <div className="ss-label" style={{ marginBottom: 6 }}>New password</div>
+          <label className="ss-label" htmlFor="rp-password" style={{ display: "block", marginBottom: 6 }}>New password</label>
           <div style={{ position: "relative" }}>
-            <input type={showPw ? "text" : "password"} placeholder="At least 8 characters" value={password}
+            <input id="rp-password" type={showPw ? "text" : "password"} placeholder="At least 8 characters" value={password}
               onChange={(e) => setPassword(e.target.value)} style={{ ...inputStyle, paddingRight: 38 }} autoFocus />
-            <button type="button" onClick={() => setShowPw((v) => !v)} tabIndex={-1}
+            <button type="button" onClick={() => setShowPw((v) => !v)} tabIndex={-1} aria-label={showPw ? "Hide password" : "Show password"}
               style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--fg-tertiary)", padding: 4, display: "inline-flex" }}>
               {showPw ? <EyeOff style={{ width: 15, height: 15 }} /> : <Eye style={{ width: 15, height: 15 }} />}
             </button>
@@ -451,6 +455,7 @@ function DeleteUserModal({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  useEscapeKey(onClose);
 
   async function handleDelete() {
     setDeleting(true);
@@ -466,7 +471,7 @@ function DeleteUserModal({
 
   return (
     <div style={overlayStyle} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{ background: "var(--surface)", borderRadius: "var(--r-lg)", width: "min(400px, 100%)", display: "flex", flexDirection: "column", border: "0.5px solid var(--border-hover)" }}>
+      <div role="dialog" aria-modal="true" aria-label="Delete user" style={{ background: "var(--surface)", borderRadius: "var(--r-lg)", width: "min(400px, 100%)", display: "flex", flexDirection: "column", border: "0.5px solid var(--border-hover)" }}>
         <div style={{ padding: "var(--space-4)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
             <span style={{ display: "inline-flex", width: 32, height: 32, borderRadius: "50%", background: "var(--danger-fill, #fce8e8)", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>

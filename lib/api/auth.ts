@@ -11,6 +11,8 @@ import type {
 
 export const authApi = {
   login:    (dto: LoginDto)        => api.post<AuthResultDto>("/api/auth/login", dto),
+  /** Revokes the refresh token and clears the httpOnly session cookies. */
+  logout:   ()                     => api.post<void>("/api/auth/logout", {}),
   me:       ()                     => api.get<UserDto>("/api/auth/me"),
   register: (dto: RegisterUserDto) => api.post<UserDto>("/api/auth/register", dto),
   listUsers:()                     => api.get<UserDto[]>("/api/auth/users"),

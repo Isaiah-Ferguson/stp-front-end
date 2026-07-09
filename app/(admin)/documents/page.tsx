@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { scriptsApi } from "@/lib/api/scripts";
 import { programsApi } from "@/lib/api/programs";
+import { useEscapeKey } from "@/lib/useEscapeKey";
 import type {
   ScriptDto,
   ScriptType as ApiScriptType,
@@ -263,6 +264,7 @@ function AddScriptModal({
   onSubmit: () => void;
 }) {
   const canSubmit = form.title.trim().length > 0 && form.programs.length > 0;
+  useEscapeKey(onClose);
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
@@ -293,6 +295,9 @@ function AddScriptModal({
       }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Add script"
         style={{
           background: "var(--surface)",
           borderRadius: "var(--r-lg)",
@@ -323,6 +328,7 @@ function AddScriptModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close"
             style={{
               background: "none",
               border: "none",
@@ -579,6 +585,7 @@ function AddScriptModal({
 // ── Script Detail Panel ───────────────────────────────────────────────────────
 
 function ScriptDetailPanel({ script, onClose }: { script: Script; onClose: () => void }) {
+  useEscapeKey(onClose);
   const TypeIcon = script.type === "musical" ? Music2 : FileText;
   const { bg, color } = STATUS_STYLE[script.status];
   const leadProg = script.programs[0];
@@ -620,6 +627,9 @@ function ScriptDetailPanel({ script, onClose }: { script: Script; onClose: () =>
       />
       {/* panel */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={script.title}
         style={{
           position: "fixed",
           top: 0,
@@ -714,6 +724,7 @@ function ScriptDetailPanel({ script, onClose }: { script: Script; onClose: () =>
             <button
               type="button"
               onClick={onClose}
+              aria-label="Close"
               style={{
                 background: "var(--surface)",
                 border: "0.5px solid var(--border)",

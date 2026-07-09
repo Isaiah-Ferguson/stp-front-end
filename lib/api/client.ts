@@ -1,14 +1,9 @@
-import { getToken, notifyUnauthorized } from "../auth/token";
+import { notifyUnauthorized } from "../auth/token";
 
-// Fail fast in production if the API URL was never configured — a silent localhost
-// fallback would make every deployed page "fetch" a server that doesn't exist.
-const BASE_URL = (() => {
-  const url = process.env.NEXT_PUBLIC_API_URL;
-  if (url) return url;
-  if (process.env.NODE_ENV === "production")
-    throw new Error("NEXT_PUBLIC_API_URL must be set in production builds.");
-  return "http://localhost:5208";
-})();
+// All requests go through the same-origin /backend proxy (see next.config.ts rewrites),
+// so the httpOnly auth cookies are first-party and sent automatically (#15). The real
+// API URL only matters to the proxy; the browser never talks to it directly.
+const BASE_URL = "/backend";
 
 /** Default per-request timeout (#36) — a hung backend must not leave pages loading forever. */
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -44,30 +39,62 @@ async function readErrorDetail(res: Response): Promise<string | undefined> {
   }
 }
 
+// ── Silent session refresh (#17) ────────────────────────────────────────────────
+// When the 1-hour JWT expires mid-session, the next call 401s; we exchange the
+// refresh cookie for a new JWT and retry once, so a half-marked attendance roster
+// survives. Concurrent 401s share one refresh call.
+
+let refreshInFlight: Promise<boolean> | null = null;
+
+function refreshSession(): Promise<boolean> {
+  refreshInFlight ??= fetch(`${BASE_URL}/api/auth/refresh`, {
+    method: "POST",
+    credentials: "include",
+  })
+    .then((r) => r.ok)
+    .catch(() => false)
+    .finally(() => {
+      refreshInFlight = null;
+    });
+  return refreshInFlight;
+}
+
+/** Auth endpoints where a 401 is an answer, not an expired session — never retried. */
+function isAuthPath(path: string): boolean {
+  return path.startsWith("/api/auth/login")
+    || path.startsWith("/api/auth/refresh")
+    || path.startsWith("/api/auth/logout");
+}
+
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = getToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(init?.headers as Record<string, string> | undefined),
   };
-  if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  // Respect a caller-provided signal, otherwise apply the default timeout (#36).
-  const signal = init?.signal ?? AbortSignal.timeout(DEFAULT_TIMEOUT_MS);
+  const doFetch = async (): Promise<Response> => {
+    // Respect a caller-provided signal, otherwise apply the default timeout (#36).
+    const signal = init?.signal ?? AbortSignal.timeout(DEFAULT_TIMEOUT_MS);
+    try {
+      return await fetch(`${BASE_URL}${path}`, { ...init, headers, credentials: "include", signal });
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "TimeoutError")
+        throw new ApiError(0, `API timeout: ${path}`, "The server took too long to respond.");
+      throw err;
+    }
+  };
 
-  let res: Response;
-  try {
-    res = await fetch(`${BASE_URL}${path}`, { ...init, headers, signal });
-  } catch (err) {
-    if (err instanceof DOMException && err.name === "TimeoutError")
-      throw new ApiError(0, `API timeout: ${path}`, "The server took too long to respond.");
-    throw err;
-  }
+  let res = await doFetch();
 
-  if (res.status === 401) {
-    // Token missing/expired/invalid — drop it and let the app redirect to login.
-    notifyUnauthorized();
-    throw new ApiError(401, `API 401: ${path}`);
+  if (res.status === 401 && !isAuthPath(path)) {
+    // Expired JWT? Refresh once and retry before giving up the session (#17).
+    if (await refreshSession()) {
+      res = await doFetch();
+    }
+    if (res.status === 401) {
+      notifyUnauthorized();
+      throw new ApiError(401, `API 401: ${path}`);
+    }
   }
 
   if (!res.ok) {

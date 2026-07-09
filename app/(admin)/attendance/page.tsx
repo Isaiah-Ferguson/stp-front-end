@@ -24,6 +24,7 @@ import { attendanceApi } from "@/lib/api/attendance";
 import { programsApi } from "@/lib/api/programs";
 import { ApiError } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { useEscapeKey } from "@/lib/useEscapeKey";
 import type {
   ScheduledSessionDto,
   SessionRosterDto,
@@ -85,6 +86,9 @@ export default function AttendancePage() {
 
   // submit
   const [submitting, setSubmitting] = useState(false);
+
+  // Escape closes the note modal (#41)
+  useEscapeKey(() => setNoteFor(null), noteFor !== null && !savingNote);
 
   // ad-hoc
   const [programs, setPrograms] = useState<ProgramSummaryDto[]>([]);
@@ -164,7 +168,9 @@ export default function AttendancePage() {
         s ? { ...s, entries: s.entries.map((en) => (en.recordId === recordId ? { ...en, status: prev } : en)) } : s
       );
       if (e instanceof ApiError && e.status === 409) {
-        setError("This session was submitted and is now locked.");
+        // 409 = submitted-and-locked or an edit collision (#26) — the backend's
+        // message says which; fall back to the lock copy.
+        setError(e.detail ?? "This session was submitted and is now locked.");
         refreshSelected();
       }
     }
@@ -401,7 +407,7 @@ export default function AttendancePage() {
           onClick={(e) => { if (e.target === e.currentTarget && !savingNote) setNoteFor(null); }}
           style={{ position: "fixed", inset: 0, background: "rgba(43,42,38,.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: "var(--space-4)" }}
         >
-          <div style={{ background: "var(--surface)", borderRadius: 12, padding: 24, width: "min(460px, calc(100vw - 32px))", display: "flex", flexDirection: "column", gap: 16, border: "0.5px solid var(--border-hover)", maxHeight: "90vh", overflowY: "auto" }}>
+          <div role="dialog" aria-modal="true" aria-label={`Notes for ${noteEntry.fullName}`} style={{ background: "var(--surface)", borderRadius: 12, padding: 24, width: "min(460px, calc(100vw - 32px))", display: "flex", flexDirection: "column", gap: 16, border: "0.5px solid var(--border-hover)", maxHeight: "90vh", overflowY: "auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div>
                 <h3 style={{ fontSize: 15, fontWeight: 500, margin: "0 0 3px" }}>{noteEntry.fullName}</h3>
@@ -409,7 +415,7 @@ export default function AttendancePage() {
                   {prettyDate(date)} · {noteEntry.programName}
                 </div>
               </div>
-              <button onClick={() => setNoteFor(null)} disabled={savingNote} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--fg-tertiary)", padding: 2 }}>
+              <button onClick={() => setNoteFor(null)} disabled={savingNote} aria-label="Close" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--fg-tertiary)", padding: 2 }}>
                 <X style={{ width: 16, height: 16 }} />
               </button>
             </div>
@@ -427,8 +433,9 @@ export default function AttendancePage() {
             )}
 
             <div>
-              <div className="ss-label" style={{ marginBottom: 6 }}>Add a note</div>
+              <label className="ss-label" htmlFor="note-text" style={{ display: "block", marginBottom: 6 }}>Add a note</label>
               <textarea
+                id="note-text"
                 rows={3}
                 placeholder="What happened today…"
                 value={noteText}

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { authApi } from "@/lib/api/auth";
-import { getToken, setToken, onUnauthorized } from "./token";
+import { onUnauthorized, purgeLegacyToken } from "./token";
 import type { UserDto, LoginDto } from "@/lib/types/api";
 
 type AuthState = {
@@ -20,32 +20,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserDto | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // On mount, if we have a stored token, resolve the current user.
+  // On mount, resolve the current user from the auth cookie (#15). If the JWT has
+  // expired, the API client transparently refreshes and retries; a hard 401 means
+  // "not signed in" and we land on the login page.
   useEffect(() => {
+    purgeLegacyToken();
     let active = true;
-    const token = getToken();
-    if (!token) {
-      setLoading(false);
-      return;
-    }
     authApi.me()
       .then((u) => { if (active) setUser(u); })
-      .catch(() => { if (active) { setToken(null); setUser(null); } })
+      .catch(() => { if (active) setUser(null); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, []);
 
-  // If any API call hits a 401, the token store fires this; clear the user.
+  // If any API call hits an unrecoverable 401, clear the user.
   useEffect(() => onUnauthorized(() => setUser(null)), []);
 
   const login = useCallback(async (dto: LoginDto) => {
+    // The backend sets httpOnly session cookies on this response; the body's user
+    // object is all the client keeps.
     const result = await authApi.login(dto);
-    setToken(result.token);
     setUser(result.user);
   }, []);
 
   const logout = useCallback(() => {
-    setToken(null);
+    // Revoke the refresh token and clear cookies server-side. keepalive lets the
+    // request survive the hard reload that follows; best-effort otherwise.
+    fetch("/backend/api/auth/logout", {
+      method: "POST",
+      credentials: "include",
+      keepalive: true,
+    }).catch(() => {});
     setUser(null);
   }, []);
 
