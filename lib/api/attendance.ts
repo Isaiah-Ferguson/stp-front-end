@@ -12,8 +12,10 @@ import type {
 export const attendanceApi = {
   /** Session cards for a date (defaults to today), scoped to the signed-in user's programs. */
   getScheduled:  (date?: string)                          => api.get<ScheduledSessionDto[]>(`/api/attendance/scheduled${date ? `?date=${date}` : ""}`),
-  /** Gets or creates the session for a program on a date and returns its roster. */
+  /** Reads a program's session roster for a date — 404s if none has been opened yet. */
   getProgramSession: (programId: string, date?: string)   => api.get<SessionRosterDto>(`/api/attendance/session?programId=${programId}${date ? `&date=${date}` : ""}`),
+  /** Opens (gets or creates) the session for a program on a date. POST — GETs no longer create (#23). */
+  openProgramSession: (programId: string, date?: string)  => api.post<SessionRosterDto>("/api/attendance/session", { programId, date }),
   /** Finalizes a session, locking its records. */
   submitSession: (sessionId: string)                      => api.post<void>(`/api/attendance/session/${sessionId}/submit`, {}),
 

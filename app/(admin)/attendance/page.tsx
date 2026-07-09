@@ -17,6 +17,7 @@ import {
   Plus,
   Lock,
   CalendarDays,
+  AlertTriangle,
   type LucideIcon,
 } from "lucide-react";
 import { attendanceApi } from "@/lib/api/attendance";
@@ -65,6 +66,9 @@ export default function AttendancePage() {
   const [date, setDate] = useState<string>(todayStr());
   const [cards, setCards] = useState<ScheduledSessionDto[]>([]);
   const [loadingCards, setLoadingCards] = useState(true);
+  // Distinguish "backend unreachable" from "no sessions today" (#35) — for an
+  // attendance tool, rendering an outage as an empty state is an operational hazard.
+  const [cardsError, setCardsError] = useState<string | null>(null);
 
   const [selected, setSelected] = useState<SessionRosterDto | null>(null);
   const [loadingRoster, setLoadingRoster] = useState(false);
@@ -89,9 +93,13 @@ export default function AttendancePage() {
 
   const loadCards = useCallback((d: string) => {
     setLoadingCards(true);
+    setCardsError(null);
     attendanceApi.getScheduled(d)
       .then(setCards)
-      .catch(() => setCards([]))
+      .catch((e: unknown) => {
+        setCards([]);
+        setCardsError(e instanceof ApiError && e.detail ? e.detail : "Couldn't load sessions — the server may be unreachable.");
+      })
       .finally(() => setLoadingCards(false));
   }, []);
 
@@ -111,7 +119,8 @@ export default function AttendancePage() {
     setFilter("all");
     setQuery("");
     try {
-      const roster = await attendanceApi.getProgramSession(programId, date);
+      // POST: opening a session is a write (creates it if needed) — see #23.
+      const roster = await attendanceApi.openProgramSession(programId, date);
       setSelected(roster);
     } catch (e) {
       if (e instanceof ApiError && e.status === 403) {
@@ -311,6 +320,28 @@ export default function AttendancePage() {
               {loadingCards ? (
                 <div style={{ padding: "40px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>
                   Loading sessions…
+                </div>
+              ) : cardsError ? (
+                <div
+                  role="alert"
+                  style={{
+                    display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--space-3)",
+                    padding: "var(--space-8) var(--space-5)", textAlign: "center",
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 44, height: 44, borderRadius: "var(--r-md)", background: "var(--danger-fill, var(--bg-secondary))",
+                      color: "var(--danger, var(--fg-secondary))", display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    <AlertTriangle style={{ width: 22, height: 22 }} />
+                  </span>
+                  <h3 style={{ fontSize: 15, fontWeight: 500, color: "var(--fg)" }}>Couldn&apos;t load sessions</h3>
+                  <p className="ss-meta" style={{ maxWidth: 340 }}>{cardsError}</p>
+                  <button className="ss-btn ss-btn-primary" onClick={() => loadCards(date)}>
+                    Retry
+                  </button>
                 </div>
               ) : (
                 <>
