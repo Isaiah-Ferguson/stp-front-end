@@ -22,7 +22,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", minHeight: "100vh", color: "var(--fg-tertiary)" }}>
         <Loader2 style={{ width: 22, height: 22, animation: "spin 1s linear infinite" }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }

@@ -11,9 +11,13 @@ export default function AdminLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <AuthGuard>
+      {/* Keyboard users can jump past the sidebar on every admin page. */}
+      <a href="#main-content" className="skip-link">Skip to main content</a>
       <div className="adm-shell">
         <AdminSidebar />
-        {children}
+        <div id="main-content" style={{ display: "contents" }}>
+          {children}
+        </div>
       </div>
     </AuthGuard>
   );

@@ -111,7 +111,9 @@ export default function AdminSidebar() {
 
   function handleLogout() {
     logout();
-    router.replace("/");
+    // Hard reload rather than client navigation so all in-memory state (caches,
+    // component state holding another user's data) is guaranteed gone.
+    window.location.assign("/");
   }
 
   // Admins get a Users management entry in the Admin section.

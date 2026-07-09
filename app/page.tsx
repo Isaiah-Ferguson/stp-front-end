@@ -94,7 +94,6 @@ export default function LoginPage() {
             <div className="login-field">
               <div className="login-field-row">
                 <label className="ss-label" htmlFor="password">Password</label>
-                <a href="#" className="text-primary font-medium text-xs" style={{ textDecoration: "none" }}>Forgot password?</a>
               </div>
               <input
                 id="password"

@@ -217,7 +217,6 @@ export default function DashboardPage() {
 
   return (
     <div className="adm-main">
-      <a href="#main-content" className="skip-link">Skip to main content</a>
       <div className="adm-topbar">
         <div className="titles">
           <h1>Dashboard</h1>
@@ -239,7 +238,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="adm-content" id="main-content">
+      <div className="adm-content">
         {/* stat grid */}
         <div className="adm-statgrid">
           <StatCard
