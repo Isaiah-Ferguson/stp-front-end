@@ -109,6 +109,7 @@ export interface ProgramDetailDto {
 export interface ProgramAlertDto {
   severity: AlertSeverity;
   message: string;
+  participantId: Guid | null;
 }
 
 export interface CreateProgramDto {
@@ -146,11 +147,11 @@ export interface ParticipantSummaryDto {
   attendancePct: number;
   startDate: string;
   hasDocAlerts: boolean;
+  birthYear: number | null;
+  serviceCoordinator: string | null;
 }
 
 export interface ParticipantDetailDto extends ParticipantSummaryDto {
-  birthYear: number | null;
-  serviceCoordinator: string | null;
   documents: DocumentRecordDto[];
   recentAttendance: AttendanceRecordDto[];
 }
@@ -425,6 +426,19 @@ export interface CreateStaffDto {
   role: StaffRole;
   startDate?: string;
   programIds?: Guid[];
+}
+
+export interface ChecklistTemplateItemDto {
+  section: string;
+  label: string;
+}
+
+export interface UpdateChecklistTemplateDto {
+  items: ChecklistTemplateItemDto[];
+}
+
+export interface SetOnboardingItemDto {
+  isCompleted: boolean;
 }
 
 export interface UpdateStaffDto {

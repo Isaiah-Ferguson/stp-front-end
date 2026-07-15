@@ -193,6 +193,9 @@
 }
 .ss-chip:hover { border-color: var(--border-hover); }
 .ss-chip .ss-dot { width: 8px; height: 8px; border-radius: 50%; }
+/* generic selected state (status pickers, day pickers, filters) — the
+   program-colored variants below override it for program chips */
+.ss-chip.is-active { background: var(--primary-fill); color: var(--primary); border-color: var(--primary); }
 /* active program chips */
 .ss-chip.is-active.mjc { background: var(--mjc-fill); color: var(--mjc-text); border-color: var(--mjc-border); }
 .ss-chip.is-active.pathways { background: var(--pathways-fill); color: var(--pathways-text); border-color: var(--pathways-border); }

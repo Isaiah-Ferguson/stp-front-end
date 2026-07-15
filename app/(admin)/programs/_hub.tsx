@@ -1,18 +1,126 @@
 "use client";
 
-
+import { useState } from "react";
+import Link from "next/link";
 import {
   Users, CalendarCheck, AlertCircle, AlertTriangle,
-  Plus, Minus, Check, Clock,
-  UserCheck, CheckCircle2,
+  Plus, Minus, Check, Clock, X,
+  UserCheck, CheckCircle2, UserPlus, UserMinus,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { programsApi } from "@/lib/api/programs";
-import type { ProgramDetailDto } from "@/lib/types/api";
+import { useStaff, usePrograms, queryKeys } from "@/lib/api/hooks";
+import AddParticipantModal from "../components/AddParticipantModal";
+import type { ProgramDetailDto, StaffSummaryDto } from "@/lib/types/api";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type ProgramSlug = string;
+
+// ── Manage staff modal ────────────────────────────────────────────────────────
+
+function ManageStaffModal({
+  programId,
+  programName,
+  slug,
+  assignedIds,
+  onClose,
+}: {
+  programId: string;
+  programName: string;
+  slug: string;
+  assignedIds: Set<string>;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const staffQ = useStaff();
+  const allStaff: StaffSummaryDto[] = staffQ.data ?? [];
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function toggle(s: StaffSummaryDto) {
+    const isAssigned = assignedIds.has(s.id);
+    setBusyId(s.id);
+    setError(null);
+    try {
+      if (isAssigned) await programsApi.unassignStaff(programId, s.id);
+      else await programsApi.assignStaff(programId, s.id);
+      // Assignments feed the program detail and per-teacher program scoping (#34).
+      await queryClient.invalidateQueries({ queryKey: ["program-detail", slug] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.myPrograms });
+    } catch {
+      setError(`Couldn't ${isAssigned ? "remove" : "add"} ${s.fullName} — try again.`);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, background: "rgba(43,42,38,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: "var(--space-4)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div style={{ background: "var(--surface)", borderRadius: "var(--r-lg)", width: "min(440px, 100%)", display: "flex", flexDirection: "column", border: "0.5px solid var(--border-hover)", maxHeight: "80vh" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "var(--space-4)", borderBottom: "0.5px solid var(--border)", flexShrink: 0 }}>
+          <div>
+            <h3 style={{ fontSize: 15, fontWeight: 500, margin: "0 0 2px" }}>Manage staff</h3>
+            <div style={{ fontSize: 12, color: "var(--fg-tertiary)" }}>Add or remove staff for {programName}</div>
+          </div>
+          <button type="button" onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--fg-tertiary)", padding: 4, borderRadius: "var(--r-sm)" }}>
+            <X style={{ width: 16, height: 16 }} />
+          </button>
+        </div>
+
+        <div style={{ padding: "var(--space-2) var(--space-4)", overflowY: "auto" }}>
+          {staffQ.isPending ? (
+            <div style={{ padding: "20px 0", textAlign: "center", fontSize: 13, color: "var(--fg-tertiary)" }}>Loading staff…</div>
+          ) : allStaff.length === 0 ? (
+            <div style={{ padding: "20px 0", textAlign: "center", fontSize: 13, color: "var(--fg-tertiary)" }}>
+              No staff yet — add staff members on the Staff page first.
+            </div>
+          ) : allStaff.map((s) => {
+            const isAssigned = assignedIds.has(s.id);
+            const busy = busyId === s.id;
+            return (
+              <div className="list-row" key={s.id}>
+                <span className={`ss-avatar ${s.role.toLowerCase()} sm`}>{s.initials}</span>
+                <div className="grow">
+                  <div className="nm">{s.fullName}</div>
+                  <div className="sub">{s.role}</div>
+                </div>
+                <button
+                  className={`ss-btn${isAssigned ? "" : " ss-btn-primary"}`}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => toggle(s)}
+                  style={{ minWidth: 96, justifyContent: "center" }}
+                >
+                  {busy ? (
+                    "Saving…"
+                  ) : isAssigned ? (
+                    <><UserMinus className="ss-btn-icon" />Remove</>
+                  ) : (
+                    <><UserPlus className="ss-btn-icon" />Add</>
+                  )}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        {error && (
+          <div style={{ margin: "0 var(--space-4) var(--space-3)", padding: "8px 12px", borderRadius: "var(--r-md)", background: "var(--danger-fill, #fce8e8)", color: "var(--danger)", fontSize: 12, display: "flex", alignItems: "flex-start", gap: 6 }}>
+            <AlertCircle style={{ width: 13, height: 13, flexShrink: 0, marginTop: 1 }} />
+            {error}
+          </div>
+        )}
+        <div style={{ padding: "var(--space-3) var(--space-4)", borderTop: "0.5px solid var(--border)", display: "flex", justifyContent: "flex-end", flexShrink: 0 }}>
+          <button className="ss-btn" type="button" onClick={onClose}>Done</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -24,10 +132,11 @@ export default function ProgramHub({ slug }: { slug: ProgramSlug }) {
   });
   const detail: ProgramDetailDto | null = detailQ.data ?? null;
   const loading = detailQ.isPending;
+  const programsQ = usePrograms();
+  const [addOpen, setAddOpen] = useState(false);
+  const [staffOpen, setStaffOpen] = useState(false);
 
   const colorVar  = `var(--${slug})`;
-  const fillVar   = `var(--${slug}-fill)`;
-  const borderVar = `var(--${slug}-border)`;
 
   const label       = detail?.name         ?? slug.toUpperCase();
   const enrolled    = detail?.enrolledCount ?? 0;
@@ -37,6 +146,7 @@ export default function ProgramHub({ slug }: { slug: ProgramSlug }) {
   const events      = detail?.upcomingEvents ?? [];
   const staff       = detail?.staff ?? [];
   const alerts      = detail?.alerts ?? [];
+  const assignedIds = new Set(staff.map((s) => s.id));
 
   // derive "next session" label from the nearest upcoming event or sessions
   const nextSessionLabel = "—";
@@ -53,9 +163,9 @@ export default function ProgramHub({ slug }: { slug: ProgramSlug }) {
           <span className="date">{new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</span>
         </div>
         <div className="right">
-          <button className="ss-btn ss-btn-primary" type="button">
+          <button className="ss-btn ss-btn-primary" type="button" disabled={!detail} onClick={() => setAddOpen(true)}>
             <Plus className="ss-btn-icon" />
-            Add participant
+            Add student
           </button>
         </div>
       </div>
@@ -100,7 +210,7 @@ export default function ProgramHub({ slug }: { slug: ProgramSlug }) {
             <div className="widget-head">
               <Users className="ico" style={{ color: colorVar }} />
               <h3>Participants</h3>
-              <a className="link" href="/students">View all</a>
+              <Link className="link" href="/students">View all</Link>
             </div>
             <div className="widget-body">
               {participants.length === 0 ? (
@@ -113,7 +223,9 @@ export default function ProgramHub({ slug }: { slug: ProgramSlug }) {
                     {p.initials}
                   </span>
                   <div className="grow">
-                    <div className="nm">{p.fullName}</div>
+                    <Link href={`/students/${p.id}`} className="nm" style={{ color: "inherit", textDecoration: "none", display: "block" }}>
+                      {p.fullName}
+                    </Link>
                     {p.hasDocAlerts ? (
                       <div style={{ fontSize: 11, color: "var(--danger)", display: "flex", alignItems: "center", gap: 3 }}>
                         <AlertCircle style={{ width: 11, height: 11 }} />Document alert
@@ -134,7 +246,7 @@ export default function ProgramHub({ slug }: { slug: ProgramSlug }) {
             <div className="widget-head">
               <CalendarCheck className="ico" style={{ color: colorVar }} />
               <h3>This Week</h3>
-              <a className="link" href="/calendar">Calendar</a>
+              <Link className="link" href="/calendar">Calendar</Link>
             </div>
             <div className="widget-body">
               {events.length === 0 ? (
@@ -145,13 +257,11 @@ export default function ProgramHub({ slug }: { slug: ProgramSlug }) {
                 <>
                   {events.slice(0, 3).map((e) => {
                     const d = new Date(e.date + "T12:00:00");
-                    const day = d.toLocaleDateString("en-US", { weekday: "short" });
-                    const date = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
                     return (
                       <div className="event-row" key={e.id}>
-                        <div className="event-date" style={{ background: fillVar, border: `0.5px solid ${borderVar}` }}>
-                          <span className="d">{day}</span>
-                          <span className="m">{date}</span>
+                        <div className="event-date">
+                          <span className="d">{String(d.getDate()).padStart(2, "0")}</span>
+                          <span className="m">{d.toLocaleDateString("en-US", { month: "short" })}</span>
                         </div>
                         <div className="body">
                           <div className="title">{e.title}</div>
@@ -201,7 +311,7 @@ export default function ProgramHub({ slug }: { slug: ProgramSlug }) {
                     <div className="txt">{a.message}</div>
                     <div className="sub">{a.severity}</div>
                   </div>
-                  <a className="act" href="#">Review</a>
+                  <Link className="act" href={a.participantId ? `/students/${a.participantId}` : "/students"}>Review</Link>
                 </div>
               )) : (
                 <div style={{ padding: "20px 0", textAlign: "center" }}>
@@ -216,6 +326,16 @@ export default function ProgramHub({ slug }: { slug: ProgramSlug }) {
             <div className="widget-head">
               <UserCheck className="ico" style={{ color: "var(--primary)" }} />
               <h3>Staff</h3>
+              <button
+                className="ss-btn"
+                type="button"
+                disabled={!detail}
+                onClick={() => setStaffOpen(true)}
+                style={{ marginLeft: "auto", padding: "3px 10px", fontSize: 12 }}
+              >
+                <UserPlus className="ss-btn-icon" />
+                Add / remove
+              </button>
             </div>
             <div className="widget-body">
               {staff.length === 0 ? (
@@ -226,7 +346,13 @@ export default function ProgramHub({ slug }: { slug: ProgramSlug }) {
                 <div className="list-row" key={s.id}>
                   <span className={`ss-avatar ${s.role.toLowerCase()} sm`}>{s.initials}</span>
                   <div className="grow">
-                    <div className="nm">{s.fullName}</div>
+                    <Link
+                      href={`/staff?expand=${encodeURIComponent(s.fullName)}`}
+                      className="nm"
+                      style={{ color: "inherit", textDecoration: "none", display: "block" }}
+                    >
+                      {s.fullName}
+                    </Link>
                     <div className="sub">{s.role}</div>
                   </div>
                   <span className="ss-badge is-active"><Check />Active</span>
@@ -245,6 +371,24 @@ export default function ProgramHub({ slug }: { slug: ProgramSlug }) {
           </div>
         )}
       </div>
+
+      {addOpen && detail && (
+        <AddParticipantModal
+          programs={programsQ.data ?? []}
+          defaultProgramId={detail.id}
+          onClose={() => setAddOpen(false)}
+        />
+      )}
+
+      {staffOpen && detail && (
+        <ManageStaffModal
+          programId={detail.id}
+          programName={detail.name}
+          slug={slug}
+          assignedIds={assignedIds}
+          onClose={() => setStaffOpen(false)}
+        />
+      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 import { AlertCircle, AlertTriangle, Info } from "lucide-react";
 
 type AlertItem = {
@@ -6,6 +7,7 @@ type AlertItem = {
   txt: string;
   sub: string;
   act: string;
+  href: string;
 };
 
 export default function AlertList({ items }: { items: AlertItem[] }) {
@@ -25,9 +27,9 @@ export default function AlertList({ items }: { items: AlertItem[] }) {
               <div className="txt">{a.txt}</div>
               <div className="sub">{a.sub}</div>
             </div>
-            <a className="act" href="#">
+            <Link className="act" href={a.href}>
               {a.act}
-            </a>
+            </Link>
           </div>
         );
       })}

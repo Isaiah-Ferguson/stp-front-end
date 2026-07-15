@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import Link from "next/link";
+import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
   TrendingUp,
@@ -22,7 +22,9 @@ import StaffList from "../components/StaffList";
 import Widget from "../components/Widget";
 import StatCard from "../components/StatCard";
 import BarChart from "../components/BarChart";
-import { useDashboard } from "@/lib/api/hooks";
+import AddParticipantModal from "../components/AddParticipantModal";
+import { useDashboard, queryKeys } from "@/lib/api/hooks";
+import { tasksApi } from "@/lib/api/tasks";
 import LoadError from "@/app/components/LoadError";
 import type {
   ParticipantSummaryDto,
@@ -57,7 +59,11 @@ export default function DashboardPage() {
   // Cached + deduplicated via React Query (#34); errors surface instead of
   // rendering as fake empty stats (#35).
   const dashboard = useDashboard();
+  const queryClient = useQueryClient();
   const loading = dashboard.isPending;
+  const [addOpen, setAddOpen] = useState(false);
+  const [completingId, setCompletingId] = useState<string | null>(null);
+  const [taskError, setTaskError] = useState<string | null>(null);
   const participants: ParticipantSummaryDto[] = dashboard.data?.participants ?? [];
   const roster: AttendanceRosterEntryDto[] = dashboard.data?.todayRoster ?? [];
   const projects: ProjectDto[] = dashboard.data?.projects ?? [];
@@ -96,12 +102,13 @@ export default function DashboardPage() {
   // ── Alerts ────────────────────────────────────────────────────────────────────
   const alertItems = useMemo(() => {
     type AlertSev = "danger" | "warning" | "info";
-    const items: { severity: AlertSev; txt: string; sub: string; act: string }[] =
+    const items: { severity: AlertSev; txt: string; sub: string; act: string; href: string }[] =
       docAlertParticipants.slice(0, 5).map((p) => ({
         severity: "danger",
         txt: `${p.fullName} — document alert`,
         sub: `${p.programName} · review documents`,
         act: "Review",
+        href: `/students/${p.id}`,
       }));
     const prospective = participants.filter((p) => p.status === "Prospective");
     if (prospective.length && items.length < 5) {
@@ -110,6 +117,7 @@ export default function DashboardPage() {
         txt: `${prospective.length} prospective participant${prospective.length > 1 ? "s" : ""} awaiting follow-up`,
         sub: "Assign a coordinator",
         act: "Assign",
+        href: "/students",
       });
     }
     return items;
@@ -160,6 +168,7 @@ export default function DashboardPage() {
         .sort((a, b) => (b.t.isOverdue ? 1 : 0) - (a.t.isOverdue ? 1 : 0))
         .slice(0, 4)
         .map((x) => ({
+          id: x.t.id,
           nm: x.t.name,
           sub: x.project,
           due: x.t.isOverdue
@@ -171,6 +180,21 @@ export default function DashboardPage() {
         })),
     [openTasks]
   );
+
+  async function completeTask(taskId: string) {
+    setCompletingId(taskId);
+    setTaskError(null);
+    try {
+      await tasksApi.updateTask(taskId, { taskStatus: "Done" });
+      // Task lists live in both caches — refetch them (#34).
+      await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects });
+    } catch {
+      setTaskError("Couldn't mark the task done — try again.");
+    } finally {
+      setCompletingId(null);
+    }
+  }
 
   // ── Staff onboarding ─────────────────────────────────────────────────────────────
   const staffItems = useMemo(
@@ -221,10 +245,10 @@ export default function DashboardPage() {
               </span>
             ))}
           </div>
-          <Link href="/students" className="ss-btn ss-btn-primary">
+          <button className="ss-btn ss-btn-primary" type="button" onClick={() => setAddOpen(true)}>
             <Plus className="ss-btn-icon" />
-            Add participant
-          </Link>
+            Add student
+          </button>
         </div>
       </div>
 
@@ -268,11 +292,11 @@ export default function DashboardPage() {
 
         {/* row 2: alerts + events */}
         <div className="adm-row2">
-          <Widget id="alerts-heading" title="Alerts" icon={<AlertTriangle className="ico ico--warning" />} linkText="View all">
+          <Widget id="alerts-heading" title="Alerts" icon={<AlertTriangle className="ico ico--warning" />} linkText="View all" linkHref="/students">
             {loading ? <EmptyRow text="Loading…" /> : alertItems.length ? <AlertList items={alertItems} /> : <EmptyRow text="No open alerts" />}
           </Widget>
 
-          <Widget id="events-heading" title="Upcoming Events" icon={<Calendar className="ico ico--primary" />} linkText="Calendar">
+          <Widget id="events-heading" title="Upcoming Events" icon={<Calendar className="ico ico--primary" />} linkText="Calendar" linkHref="/calendar">
             {loading ? (
               <EmptyRow text="Loading…" />
             ) : upcoming.length ? (
@@ -305,8 +329,17 @@ export default function DashboardPage() {
             {loading ? <EmptyRow text="Loading…" /> : pipeline.length ? <PipelineList items={pipeline} /> : <EmptyRow text="No participants yet" />}
           </Widget>
 
-          <Widget id="tasks-heading" title="Open Tasks" icon={<CheckSquare className="ico ico--primary" />}>
-            {loading ? <EmptyRow text="Loading…" /> : taskItems.length ? <TasksList items={taskItems} /> : <EmptyRow text="No open tasks" />}
+          <Widget id="tasks-heading" title="Open Tasks" icon={<CheckSquare className="ico ico--primary" />} linkText="View all" linkHref="/tasks">
+            {taskError && (
+              <div style={{ padding: "6px 0", fontSize: 12, color: "var(--danger)" }}>{taskError}</div>
+            )}
+            {loading ? (
+              <EmptyRow text="Loading…" />
+            ) : taskItems.length ? (
+              <TasksList items={taskItems} onComplete={completeTask} completingId={completingId} />
+            ) : (
+              <EmptyRow text="No open tasks" />
+            )}
           </Widget>
 
           <Widget id="onboard-heading" title="Staff Onboarding" icon={<UserCheck className="ico ico--primary" />}>
@@ -325,6 +358,8 @@ export default function DashboardPage() {
           )}
         </Widget>
       </div>
+
+      {addOpen && <AddParticipantModal programs={programs} onClose={() => setAddOpen(false)} />}
     </div>
   );
 }

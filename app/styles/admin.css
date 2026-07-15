@@ -222,16 +222,21 @@ table.tbl { width: 100%; min-width: 1040px; border-collapse: collapse; font-size
 .exp { display: inline-flex; align-items: center; gap: 5px; font-weight: var(--w-medium); font-size: var(--fs-meta); white-space: nowrap; }
 .exp svg { width: 13px; height: 13px; }
 .exp.red { color: var(--danger); } .exp.amber { color: #9a6a12; } .exp.green { color: var(--success-text); }
-.chk { width: 16px; height: 16px; border-radius: var(--r-sm); border: 1.5px solid var(--border-strong); background: var(--surface); display: inline-block; }
+.chk { width: 16px; height: 16px; border-radius: var(--r-sm); border: 1.5px solid var(--border-strong); background: var(--surface); display: inline-block; padding: 0; }
+button.chk { cursor: pointer; }
+.chk.is-checked { background: var(--primary); border-color: var(--primary); }
+.chk.is-checked::after { content: ""; display: block; width: 8px; height: 4px; border-left: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(-45deg); margin: 3px auto 0; }
 
 .tbl-foot { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-3) var(--space-4); border-top: var(--bw) solid var(--border); flex-wrap: wrap; }
 .tbl-foot .info { font-size: var(--fs-meta); color: var(--fg-secondary); }
 .tbl-foot .rpp { display: flex; align-items: center; gap: var(--space-2); font-size: var(--fs-meta); color: var(--fg-secondary); margin-left: auto; }
 .tbl-foot select { font-family: var(--font-sans); font-size: var(--fs-meta); border: var(--bw) solid var(--border); border-radius: var(--r-sm); padding: 3px 6px; background: var(--surface); color: var(--fg); }
 .pager { display: flex; align-items: center; gap: 2px; }
-.pager .pg { min-width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--r-sm); font-size: var(--fs-meta); color: var(--fg-secondary); border: var(--bw) solid transparent; cursor: pointer; }
+.pager .pg { min-width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--r-sm); font-size: var(--fs-meta); color: var(--fg-secondary); border: var(--bw) solid transparent; cursor: pointer; background: none; font-family: inherit; padding: 0; }
 .pager .pg:hover { background: var(--bg-tertiary); }
 .pager .pg.is-active { background: var(--primary); color: #fff; }
+.pager button.pg:disabled { cursor: default; }
+.pager button.pg:disabled:hover { background: none; }
 
 /* ============================================================
    CALENDAR

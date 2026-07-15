@@ -1,40 +1,38 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import {
   UserPlus,
   Download,
   AlertTriangle,
-  Check,
   AlertCircle,
   Search,
   ChevronDown,
+  ChevronUp,
   ChevronLeft,
   ChevronRight,
   Clock,
+  Check,
   CheckCircle2,
   MinusCircle,
   FileX,
-  X,
   type LucideIcon,
 } from "lucide-react";
-import { participantsApi } from "@/lib/api/participants";
-import { useParticipants, usePrograms, queryKeys } from "@/lib/api/hooks";
+import { useParticipants, usePrograms } from "@/lib/api/hooks";
 import LoadError from "@/app/components/LoadError";
-import { programsApi } from "@/lib/api/programs";
+import AddParticipantModal from "../components/AddParticipantModal";
 import type {
   ParticipantSummaryDto,
   ProgramSummaryDto,
-  CreateParticipantDto,
-  ParticipantStatus,
 } from "@/lib/types/api";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type Status = "active" | "prospective" | "attention" | "former";
 type AlertKind = "expiring" | "overdue" | "missing";
+type StatusTab = "all" | Status;
+type SortKey = "name" | "att" | "start";
 
 const STATUS_BADGE: Record<Status, { cls: string; icon: LucideIcon; label: string }> = {
   active:      { cls: "is-active",      icon: CheckCircle2, label: "Active" },
@@ -53,7 +51,7 @@ type Student = {
   id: string;
   init: string;
   nm: string;
-  dob: string;
+  birthYear: string;
   prog: string;
   progName: string;
   status: Status;
@@ -61,6 +59,7 @@ type Student = {
   att: number;
   sc: string;
   start: string;
+  startRaw: string;
 };
 
 // ── DTO → local type ──────────────────────────────────────────────────────────
@@ -72,155 +71,58 @@ function dtoToStudent(dto: ParticipantSummaryDto): Student {
     id: dto.id,
     init: dto.initials,
     nm: dto.fullName,
-    dob: "—",
+    birthYear: dto.birthYear ? `b. ${dto.birthYear}` : "—",
     prog: dto.programSlug,
     progName: dto.programName,
     status: dto.status.toLowerCase() as Status,
     alerts: dto.hasDocAlerts ? ["expiring"] : [],
     att: dto.attendancePct,
-    sc: "—",
+    sc: dto.serviceCoordinator ?? "—",
     start: startLabel,
+    startRaw: dto.startDate,
   };
 }
 
-// ── Add Student Modal ─────────────────────────────────────────────────────────
-
-type AddStudentForm = {
-  nm: string;
-  birthYear: string;
-  programId: string;
-  status: "active" | "prospective";
-  sc: string;
-};
-
-const EMPTY_FORM: AddStudentForm = { nm: "", birthYear: "", programId: "", status: "prospective", sc: "" };
-
-function toInitials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "??";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
-
-function currentMonthYear(): string {
-  return new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" });
-}
-
-function AddStudentModal({
-  programs,
-  form,
-  setForm,
-  onClose,
-  onSubmit,
-  error,
-}: {
-  programs: ProgramSummaryDto[];
-  form: AddStudentForm;
-  setForm: React.Dispatch<React.SetStateAction<AddStudentForm>>;
-  onClose: () => void;
-  onSubmit: () => void;
-  error?: string | null;
-}) {
-  const canSubmit = form.nm.trim().length > 0 && form.programId !== "";
-
-  const inputStyle: React.CSSProperties = {
-    width: "100%", boxSizing: "border-box",
-    border: "0.5px solid var(--border-hover)", borderRadius: "var(--r-md)",
-    padding: "8px 12px", fontSize: 13, color: "var(--fg)",
-    background: "var(--surface)", outline: "none",
-  };
-
-  return (
-    <div
-      style={{ position: "fixed", inset: 0, background: "rgba(43,42,38,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: "var(--space-4)" }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div style={{ background: "var(--surface)", borderRadius: "var(--r-lg)", width: "min(480px, 100%)", display: "flex", flexDirection: "column", border: "0.5px solid var(--border-hover)", maxHeight: "90vh" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "var(--space-4)", borderBottom: "0.5px solid var(--border)", flexShrink: 0 }}>
-          <div>
-            <h3 style={{ fontSize: 15, fontWeight: 500, margin: "0 0 2px" }}>Add participant</h3>
-            <div style={{ fontSize: 12, color: "var(--fg-tertiary)" }}>New participant will appear in the roster</div>
-          </div>
-          <button type="button" onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--fg-tertiary)", padding: 4, borderRadius: "var(--r-sm)" }}>
-            <X style={{ width: 16, height: 16 }} />
-          </button>
-        </div>
-
-        <div style={{ padding: "var(--space-4)", display: "flex", flexDirection: "column", gap: "var(--space-4)", overflowY: "auto" }}>
-          <div>
-            <div className="ss-label" style={{ marginBottom: 6 }}>Full name <span style={{ color: "var(--danger)", fontWeight: 400 }}>*</span></div>
-            <input type="text" placeholder="e.g. Jordan Rivera" value={form.nm} onChange={(e) => setForm((f) => ({ ...f, nm: e.target.value }))} style={inputStyle} autoFocus />
-          </div>
-
-          <div>
-            <div className="ss-label" style={{ marginBottom: 6 }}>Birth year <span style={{ fontSize: 11, color: "var(--fg-tertiary)", fontWeight: 400 }}>Optional</span></div>
-            <input type="number" min={1940} max={2015} placeholder="e.g. 1998" value={form.birthYear} onChange={(e) => setForm((f) => ({ ...f, birthYear: e.target.value }))} style={{ ...inputStyle, width: "40%" }} />
-          </div>
-
-          <div>
-            <div className="ss-label" style={{ marginBottom: 8 }}>Program <span style={{ color: "var(--danger)", fontWeight: 400 }}>*</span></div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {programs.map((p) => {
-                const selected = form.programId === p.id;
-                return (
-                  <button key={p.id} type="button" onClick={() => setForm((f) => ({ ...f, programId: p.id }))}
-                    style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: "var(--r-pill)", border: `0.5px solid ${selected ? `var(--${p.slug}-border)` : "var(--border)"}`, background: selected ? `var(--${p.slug}-fill)` : "var(--surface)", color: selected ? `var(--${p.slug})` : "var(--fg-secondary)", cursor: "pointer", fontSize: 13 }}>
-                    <span className={`ss-dot ${p.slug}`} />
-                    {p.name}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div>
-            <div className="ss-label" style={{ marginBottom: 8 }}>Status</div>
-            <div style={{ display: "flex", gap: 6 }}>
-              {(["prospective", "active"] as const).map((s) => (
-                <button key={s} type="button" className={`ss-chip${form.status === s ? " is-active" : ""}`} style={{ cursor: "pointer" }} onClick={() => setForm((f) => ({ ...f, status: s }))}>
-                  {s.charAt(0).toUpperCase() + s.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <div className="ss-label" style={{ marginBottom: 6 }}>Service coordinator <span style={{ fontSize: 11, color: "var(--fg-tertiary)", fontWeight: 400 }}>Optional</span></div>
-            <input type="text" placeholder="e.g. R. Alvarez" value={form.sc} onChange={(e) => setForm((f) => ({ ...f, sc: e.target.value }))} style={inputStyle} />
-          </div>
-        </div>
-
-        {error && (
-          <div style={{ margin: "0 var(--space-4)", padding: "8px 12px", borderRadius: "var(--r-md)", background: "var(--danger-fill, #fce8e8)", color: "var(--danger)", fontSize: 12, display: "flex", alignItems: "flex-start", gap: 6 }}>
-            <AlertCircle style={{ width: 13, height: 13, flexShrink: 0, marginTop: 1 }} />
-            {error}
-          </div>
-        )}
-        <div style={{ padding: "var(--space-3) var(--space-4)", borderTop: "0.5px solid var(--border)", display: "flex", gap: 8, justifyContent: "flex-end", flexShrink: 0 }}>
-          <button className="ss-btn" type="button" onClick={onClose}>Cancel</button>
-          <button className="ss-btn ss-btn-primary" type="button" onClick={onSubmit} disabled={!canSubmit}>
-            <UserPlus className="ss-btn-icon" />
-            Add participant
-          </button>
-        </div>
-      </div>
-    </div>
+function exportCsv(rows: Student[]) {
+  const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+  const header = ["Name", "Birth year", "Program", "Status", "Alerts", "Attendance %", "Service coordinator", "Started"];
+  const lines = rows.map((s) =>
+    [s.nm, s.birthYear, s.progName, STATUS_BADGE[s.status]?.label ?? s.status, s.alerts.join("; ") || "none", s.att, s.sc, s.startRaw]
+      .map(esc)
+      .join(",")
   );
+  const blob = new Blob([[header.map(esc).join(","), ...lines].join("\n")], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "students.csv";
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function StudentsPage() {
   // Cached + shared across pages via React Query (#34).
-  const queryClient = useQueryClient();
   const participantsQ = useParticipants();
   const programsQ = usePrograms();
   const loading = participantsQ.isPending || programsQ.isPending;
   const data = useMemo(() => (participantsQ.data ?? []).map(dtoToStudent), [participantsQ.data]);
   const programs: ProgramSummaryDto[] = programsQ.data ?? [];
   const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState<AddStudentForm>(EMPTY_FORM);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // filters
+  const [statusTab, setStatusTab] = useState<StatusTab>("all");
+  const [programFilter, setProgramFilter] = useState<string>("all");
+  const [alertsOnly, setAlertsOnly] = useState(false);
+  const [query, setQuery] = useState("");
+
+  // sorting + paging + selection
+  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const counts = {
     all:         data.length,
@@ -232,44 +134,106 @@ export default function StudentsPage() {
 
   const alertStudentCount = data.filter((d) => d.alerts.length > 0).length;
 
-  function openModal() { setForm(EMPTY_FORM); setSubmitError(null); setModalOpen(true); }
-  function closeModal() { setSubmitError(null); setModalOpen(false); }
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const rows = data.filter((d) => {
+      if (statusTab !== "all" && d.status !== statusTab) return false;
+      if (programFilter !== "all" && d.prog !== programFilter) return false;
+      if (alertsOnly && d.alerts.length === 0) return false;
+      if (q && !d.nm.toLowerCase().includes(q) && !d.progName.toLowerCase().includes(q) && !d.sc.toLowerCase().includes(q)) return false;
+      return true;
+    });
+    const dir = sortDir === "asc" ? 1 : -1;
+    rows.sort((a, b) => {
+      if (sortKey === "att") return (a.att - b.att) * dir;
+      if (sortKey === "start") return a.startRaw.localeCompare(b.startRaw) * dir;
+      return a.nm.localeCompare(b.nm) * dir;
+    });
+    return rows;
+  }, [data, statusTab, programFilter, alertsOnly, query, sortKey, sortDir]);
 
-  async function handleSubmit() {
-    const statusMap: Record<string, ParticipantStatus> = { active: "Active", prospective: "Prospective" };
-    const dto: CreateParticipantDto = {
-      fullName: form.nm.trim(),
-      initials: toInitials(form.nm),
-      programId: form.programId,
-      status: statusMap[form.status] ?? "Prospective",
-      birthYear: form.birthYear ? parseInt(form.birthYear) : undefined,
-      serviceCoordinator: form.sc.trim() || undefined,
-    };
+  // Filters can shrink the result set below the current page — clamp when reading.
+  const pageCount = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
+  const currentPage = Math.min(page, pageCount);
+  const pageStart = (currentPage - 1) * rowsPerPage;
+  const pageRows = filtered.slice(pageStart, pageStart + rowsPerPage);
 
-    try {
-      await participantsApi.create(dto);
-      // The cached list is stale now — refetch it (#34).
-      queryClient.invalidateQueries({ queryKey: queryKeys.participants });
-      closeModal();
-    } catch {
-      setSubmitError("Could not save participant — check that the backend is running and try again.");
-    }
+  const allVisibleSelected = pageRows.length > 0 && pageRows.every((r) => selected.has(r.id));
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(key); setSortDir(key === "att" ? "desc" : "asc"); }
   }
+
+  function toggleRow(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAllVisible() {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) pageRows.forEach((r) => next.delete(r.id));
+      else pageRows.forEach((r) => next.add(r.id));
+      return next;
+    });
+  }
+
+  function resetPageAnd<T>(setter: (v: T) => void) {
+    return (v: T) => { setter(v); setPage(1); };
+  }
+
+  const setTab = resetPageAnd(setStatusTab);
+  const setProg = resetPageAnd(setProgramFilter);
+  const setAlerts = resetPageAnd(setAlertsOnly);
+  const setSearch = resetPageAnd(setQuery);
+
+  const exportRows = selected.size > 0 ? filtered.filter((r) => selected.has(r.id)) : filtered;
+
+  const sortCaret = (col: SortKey) =>
+    sortKey === col ? (
+      <span className="caret">{sortDir === "asc" ? <ChevronUp /> : <ChevronDown />}</span>
+    ) : (
+      <span className="caret" style={{ opacity: 0.35 }}><ChevronDown /></span>
+    );
+
+  const filterSummary = [
+    statusTab === "all" ? "All statuses" : STATUS_BADGE[statusTab].label,
+    programFilter === "all" ? "all programs" : programs.find((p) => p.slug === programFilter)?.name ?? programFilter,
+    ...(alertsOnly ? ["alerts only"] : []),
+  ].join(" · ");
+
+  const TAB_DEFS: { key: StatusTab; cls: string; label: string; count: number }[] = [
+    { key: "all",         cls: "",      label: "All Students",    count: counts.all },
+    { key: "active",      cls: "green", label: "Active",          count: counts.active },
+    { key: "prospective", cls: "amber", label: "Prospective",     count: counts.prospective },
+    { key: "attention",   cls: "red",   label: "Needs Attention", count: counts.attention },
+    { key: "former",      cls: "gray",  label: "Former",          count: counts.former },
+  ];
 
   return (
     <div className="adm-main">
       <div className="adm-topbar">
         <div className="titles">
-          <h1>Participants</h1>
+          <h1>Students</h1>
         </div>
         <div className="right">
-          <button className="ss-btn ss-btn-primary" type="button" onClick={openModal}>
+          <button className="ss-btn ss-btn-primary" type="button" onClick={() => setModalOpen(true)}>
             <UserPlus className="ss-btn-icon" />
-            Add participant
+            Add student
           </button>
-          <button className="ss-btn" type="button">
+          <button
+            className="ss-btn"
+            type="button"
+            onClick={() => exportCsv(exportRows)}
+            disabled={loading || filtered.length === 0}
+          >
             <Download className="ss-btn-icon" />
-            Export
+            Export{selected.size > 0 ? ` (${selected.size})` : ""}
           </button>
         </div>
       </div>
@@ -277,63 +241,84 @@ export default function StudentsPage() {
       <div className="adm-content">
         {/* stat tabs */}
         <div className="stat-tabs">
-          <button className="stat-tab is-active">
-            <span className="num">{counts.all}</span>
-            <span className="label">All Participants</span>
-          </button>
-          <button className="stat-tab green">
-            <span className="num">{counts.active}</span>
-            <span className="label">Active</span>
-          </button>
-          <button className="stat-tab amber">
-            <span className="num">{counts.prospective}</span>
-            <span className="label">Prospective</span>
-          </button>
-          <button className="stat-tab red">
-            <span className="num">{counts.attention}</span>
-            <span className="label">Needs Attention</span>
-          </button>
-          <button className="stat-tab gray">
-            <span className="num">{counts.former}</span>
-            <span className="label">Former</span>
-          </button>
+          {TAB_DEFS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              className={`stat-tab ${t.cls}${statusTab === t.key ? " is-active" : ""}`.trim()}
+              onClick={() => setTab(t.key)}
+              aria-pressed={statusTab === t.key}
+            >
+              <span className="num">{t.count}</span>
+              <span className="label">{t.label}</span>
+            </button>
+          ))}
         </div>
 
         {/* alert banner */}
-        {alertStudentCount > 0 && (
+        {alertStudentCount > 0 && !alertsOnly && (
           <div className="ss-alert is-danger">
             <AlertTriangle />
             <span className="ss-alert-text">
-              <strong>{alertStudentCount} participant{alertStudentCount > 1 ? "s" : ""} require action</strong> — expiring POS, missing intake docs, or overdue follow-up.
+              <strong>{alertStudentCount} student{alertStudentCount > 1 ? "s" : ""} require action</strong> — expiring POS, missing intake docs, or overdue follow-up.
             </span>
-            <a className="ss-alert-action" href="#">View all alerts →</a>
+            <button
+              className="ss-alert-action"
+              type="button"
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 0, font: "inherit" }}
+              onClick={() => setAlerts(true)}
+            >
+              View all alerts →
+            </button>
           </div>
         )}
 
         {/* filter bar */}
         <div className="filter-bar">
-          <span className="ss-chip is-active" style={{ cursor: "pointer" }}>All</span>
+          <button
+            type="button"
+            className={`ss-chip${programFilter === "all" ? " is-active" : ""}`}
+            style={{ cursor: "pointer" }}
+            onClick={() => setProg("all")}
+          >
+            All
+          </button>
           {programs.map((p) => (
-            <span key={p.id} className="ss-chip" style={{ cursor: "pointer" }}>
+            <button
+              key={p.id}
+              type="button"
+              className={`ss-chip${programFilter === p.slug ? ` is-active ${p.slug}` : ""}`}
+              style={{ cursor: "pointer" }}
+              onClick={() => setProg(programFilter === p.slug ? "all" : p.slug)}
+            >
               <span className={`ss-dot ${p.slug}`} />
               {p.name}
-            </span>
+            </button>
           ))}
           <span className="sep" />
-          <span className="ss-chip is-active" style={{ background: "var(--success-fill)", color: "var(--success-text)", borderColor: "var(--success-border)" }}>
-            <Check style={{ width: 12, height: 12 }} />Active
-          </span>
-          <span className="ss-chip is-active" style={{ background: "var(--warning-fill)", color: "var(--warning-text)", borderColor: "var(--warning-border)" }}>
-            <Check style={{ width: 12, height: 12 }} />Prospective
-          </span>
-          <span className="ss-chip">Former</span>
-          <span className="sep" />
-          <span className="ss-chip" style={{ background: "var(--danger-fill)", color: "var(--danger-text)", borderColor: "var(--danger-border)" }}>
-            <AlertCircle style={{ width: 12, height: 12 }} />Alerts only
-          </span>
+          <button
+            type="button"
+            className="ss-chip"
+            style={
+              alertsOnly
+                ? { cursor: "pointer", background: "var(--danger-fill)", color: "var(--danger-text)", borderColor: "var(--danger-border)" }
+                : { cursor: "pointer" }
+            }
+            onClick={() => setAlerts(!alertsOnly)}
+            aria-pressed={alertsOnly}
+          >
+            <AlertCircle style={{ width: 12, height: 12 }} />
+            Alerts only
+            {alertsOnly && <Check style={{ width: 12, height: 12 }} />}
+          </button>
           <div className="search">
             <Search />
-            <input type="text" placeholder="Search participants…" />
+            <input
+              type="text"
+              placeholder="Search students…"
+              value={query}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
         </div>
 
@@ -343,45 +328,65 @@ export default function StudentsPage() {
             <table className="tbl">
               <thead>
                 <tr>
-                  <th style={{ width: 36 }}><span className="chk" /></th>
-                  <th className="sortable">Participant <span className="caret"><ChevronDown /></span></th>
+                  <th style={{ width: 36 }}>
+                    <button
+                      type="button"
+                      className={`chk${allVisibleSelected ? " is-checked" : ""}`}
+                      aria-label={allVisibleSelected ? "Deselect all on this page" : "Select all on this page"}
+                      onClick={toggleAllVisible}
+                    />
+                  </th>
+                  <th className="sortable" onClick={() => toggleSort("name")} style={{ cursor: "pointer" }}>
+                    Student {sortCaret("name")}
+                  </th>
                   <th>Program</th>
                   <th>Status</th>
                   <th>Alerts</th>
-                  <th className="sortable">Attendance</th>
+                  <th className="sortable" onClick={() => toggleSort("att")} style={{ cursor: "pointer" }}>
+                    Attendance {sortCaret("att")}
+                  </th>
                   <th>Service Coord</th>
-                  <th className="sortable">Started</th>
+                  <th className="sortable" onClick={() => toggleSort("start")} style={{ cursor: "pointer" }}>
+                    Started {sortCaret("start")}
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
                     <td colSpan={8} style={{ textAlign: "center", padding: "32px 0", color: "var(--fg-tertiary)", fontSize: 13 }}>
-                      Loading participants…
+                      Loading students…
                     </td>
                   </tr>
                 ) : participantsQ.isError ? (
                   <tr>
                     <td colSpan={8}>
                       <LoadError
-                        title="Couldn't load participants"
+                        title="Couldn't load students"
                         error={participantsQ.error}
                         onRetry={() => participantsQ.refetch()}
                       />
                     </td>
                   </tr>
-                ) : data.length === 0 ? (
+                ) : filtered.length === 0 ? (
                   <tr>
                     <td colSpan={8} style={{ textAlign: "center", padding: "40px 0", color: "var(--fg-tertiary)", fontSize: 13 }}>
-                      No participants yet — add one to get started.
+                      {data.length === 0 ? "No students yet — add one to get started." : "No students match the current filters."}
                     </td>
                   </tr>
-                ) : data.map((d) => {
+                ) : pageRows.map((d) => {
                   const badge = STATUS_BADGE[d.status] ?? STATUS_BADGE.active;
                   const BadgeIcon = badge.icon;
                   return (
                     <tr key={d.id}>
-                      <td><span className="chk" /></td>
+                      <td>
+                        <button
+                          type="button"
+                          className={`chk${selected.has(d.id) ? " is-checked" : ""}`}
+                          aria-label={`Select ${d.nm}`}
+                          onClick={() => toggleRow(d.id)}
+                        />
+                      </td>
                       <td>
                         <div className="cell-student">
                           <span className="ss-avatar sm" style={{ background: `var(--${d.prog}-fill)`, color: `var(--${d.prog})`, border: `0.5px solid var(--${d.prog}-border)` }}>
@@ -389,7 +394,7 @@ export default function StudentsPage() {
                           </span>
                           <div>
                             <Link href={`/students/${d.id}`} className="nm" style={{ color: "inherit", textDecoration: "none" }}>{d.nm}</Link>
-                            <div className="dob">{d.dob}</div>
+                            <div className="dob">{d.birthYear}</div>
                           </div>
                         </div>
                       </td>
@@ -438,38 +443,70 @@ export default function StudentsPage() {
             </table>
           </div>
           <div className="tbl-foot">
-            <span className="info">Showing {Math.min(data.length, 10)} of {data.length} participants</span>
-            <span className="info">· Active &amp; Prospective · all programs</span>
+            <span className="info">
+              Showing {filtered.length === 0 ? 0 : pageStart + 1}–{Math.min(pageStart + rowsPerPage, filtered.length)} of {filtered.length} student{filtered.length === 1 ? "" : "s"}
+            </span>
+            <span className="info">· {filterSummary}</span>
+            {selected.size > 0 && <span className="info">· {selected.size} selected</span>}
             <div className="rpp">
               Rows per page
-              <select defaultValue="10">
-                <option>10</option>
-                <option>25</option>
-                <option>50</option>
+              <select
+                value={rowsPerPage}
+                onChange={(e) => { setRowsPerPage(Number(e.target.value)); setPage(1); }}
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
               </select>
             </div>
             <div className="pager">
-              <span className="pg"><ChevronLeft style={{ width: 14, height: 14 }} /></span>
-              <span className="pg is-active">1</span>
-              <span className="pg">2</span>
-              <span className="pg">3</span>
-              <span className="pg" style={{ cursor: "default" }}>…</span>
-              <span className="pg">5</span>
-              <span className="pg"><ChevronRight style={{ width: 14, height: 14 }} /></span>
+              <button
+                type="button"
+                className="pg"
+                disabled={currentPage <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                aria-label="Previous page"
+              >
+                <ChevronLeft style={{ width: 14, height: 14, opacity: currentPage <= 1 ? 0.35 : 1 }} />
+              </button>
+              {Array.from({ length: pageCount }, (_, i) => i + 1)
+                .filter((n) => n === 1 || n === pageCount || Math.abs(n - currentPage) <= 1)
+                .reduce<(number | "…")[]>((acc, n) => {
+                  const prev = acc[acc.length - 1];
+                  if (typeof prev === "number" && n - prev > 1) acc.push("…");
+                  acc.push(n);
+                  return acc;
+                }, [])
+                .map((n, i) =>
+                  n === "…" ? (
+                    <span key={`gap-${i}`} className="pg" style={{ cursor: "default" }}>…</span>
+                  ) : (
+                    <button
+                      key={n}
+                      type="button"
+                      className={`pg${n === currentPage ? " is-active" : ""}`}
+                      onClick={() => setPage(n)}
+                    >
+                      {n}
+                    </button>
+                  )
+                )}
+              <button
+                type="button"
+                className="pg"
+                disabled={currentPage >= pageCount}
+                onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+                aria-label="Next page"
+              >
+                <ChevronRight style={{ width: 14, height: 14, opacity: currentPage >= pageCount ? 0.35 : 1 }} />
+              </button>
             </div>
           </div>
         </div>
       </div>
 
       {modalOpen && (
-        <AddStudentModal
-          programs={programs}
-          form={form}
-          setForm={setForm}
-          onClose={closeModal}
-          onSubmit={handleSubmit}
-          error={submitError}
-        />
+        <AddParticipantModal programs={programs} onClose={() => setModalOpen(false)} />
       )}
     </div>
   );

@@ -21,6 +21,7 @@ export const queryKeys = {
   myPrograms: ["programs", "mine"] as const,
   participants: ["participants"] as const,
   staff: ["staff"] as const,
+  checklistTemplate: ["staff", "checklist-template"] as const,
   dashboard: ["dashboard"] as const,
   projects: ["projects"] as const,
   users: ["users"] as const,
@@ -42,6 +43,9 @@ export const useParticipants = () =>
 
 export const useStaff = () =>
   useQuery({ queryKey: queryKeys.staff, queryFn: () => staffApi.getAll() });
+
+export const useChecklistTemplate = () =>
+  useQuery({ queryKey: queryKeys.checklistTemplate, queryFn: () => staffApi.getChecklistTemplate(), staleTime: 60_000 });
 
 export const useDashboard = () =>
   useQuery({ queryKey: queryKeys.dashboard, queryFn: () => dashboardApi.get(), staleTime: 15_000 });

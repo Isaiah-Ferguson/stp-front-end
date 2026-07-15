@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Download,
@@ -15,7 +16,7 @@ import {
   Pencil,
 } from "lucide-react";
 import { staffApi } from "@/lib/api/staff";
-import { useStaff, usePrograms, queryKeys } from "@/lib/api/hooks";
+import { useStaff, usePrograms, useChecklistTemplate, queryKeys } from "@/lib/api/hooks";
 import LoadError from "@/app/components/LoadError";
 import { ApiError } from "@/lib/api/client";
 import {
@@ -32,6 +33,8 @@ import type {
   ProgramSummaryDto,
   CreateStaffDto,
   StaffRole,
+  OnboardingItemDto,
+  ChecklistTemplateItemDto,
 } from "@/lib/types/api";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -79,9 +82,40 @@ function groupBySection(items: StaffDetailDto["onboardingItems"]) {
   return [...map.entries()];
 }
 
+// The API stores the template as a flat ordered list; the modal edits it as sections.
+function templateToSections(items: ChecklistTemplateItemDto[]): TemplateSection[] {
+  const sections: TemplateSection[] = [];
+  items.forEach((item, i) => {
+    let sec = sections.find((s) => s.name === item.section);
+    if (!sec) { sec = { name: item.section, items: [] }; sections.push(sec); }
+    sec.items.push({ id: `t${i}`, label: item.label });
+  });
+  return sections;
+}
+
+function sectionsToTemplate(sections: TemplateSection[]): ChecklistTemplateItemDto[] {
+  return sections.flatMap((s) =>
+    s.items
+      .filter((i) => i.label.trim().length > 0)
+      .map((i) => ({ section: s.name.trim() || "General", label: i.label.trim() }))
+  );
+}
+
+type StaffFilter = "all" | "complete" | "inprogress" | "new" | "alerts";
+
+function matchesFilter(s: StaffSummaryDto, filter: StaffFilter): boolean {
+  switch (filter) {
+    case "complete":   return s.onboardingProgressPct === 100;
+    case "inprogress": return s.onboardingProgressPct > 0 && s.onboardingProgressPct < 100;
+    case "new":        return isNewHire(s.startDate);
+    case "alerts":     return s.onboardingProgressPct < 100;
+    default:           return true;
+  }
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function StaffPage() {
+function StaffPageInner() {
   // Cached + shared via React Query (#34).
   const queryClient = useQueryClient();
   const staffQ = useStaff();
@@ -89,32 +123,90 @@ export default function StaffPage() {
   const staffList: StaffSummaryDto[] = staffQ.data ?? [];
   const programs: ProgramSummaryDto[] = programsQ.data ?? [];
   const loading = staffQ.isPending || programsQ.isPending;
-  // "auto" = expand the first in-progress onboarding once data arrives; explicit
-  // values take over as soon as the user toggles anything.
+  // ?expand=<full name> deep-links straight to a staff member's checklist
+  // (e.g. from a program page); it wins over the in-progress default below.
+  const expandParam = useSearchParams().get("expand");
+  // "auto" = expand the deep-linked row, else the first in-progress onboarding
+  // once data arrives; explicit values take over as soon as the user toggles.
   const [expandedRaw, setExpandedRaw] = useState<string | null | "auto">("auto");
   const expanded = expandedRaw === "auto"
-    ? staffList.find((s) => s.onboardingProgressPct > 0 && s.onboardingProgressPct < 100)?.fullName ?? null
+    ? (expandParam && staffList.some((s) => s.fullName === expandParam) ? expandParam : null)
+      ?? staffList.find((s) => s.onboardingProgressPct > 0 && s.onboardingProgressPct < 100)?.fullName ?? null
     : expandedRaw;
   const [detailCache, setDetailCache] = useState<Record<string, StaffDetailDto>>({});
+
+  // Whatever row is expanded needs its checklist detail loaded.
+  const expandedStaff = staffList.find((s) => s.fullName === expanded);
+  useEffect(() => {
+    const s = expandedStaff;
+    if (!s || detailCache[s.id]) return;
+    staffApi.getById(s.id)
+      .then((d) => setDetailCache((prev) => ({ ...prev, [s.id]: d })))
+      .catch(() => { /* row shows its loading state */ });
+  }, [expandedStaff, detailCache]);
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<AddStaffForm>(EMPTY_STAFF_FORM);
   const [templateOpen, setTemplateOpen] = useState(false);
-  const [template, setTemplate] = useState<TemplateSection[]>(DEFAULT_TEMPLATE);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<StaffFilter>("all");
+  // Item ids with an in-flight toggle request, so a double-click can't race.
+  const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
 
-  async function handleToggle(id: string, name: string) {
-    const isExpanding = expanded !== name;
+  // The checklist template lives on the server; fall back to the built-in
+  // default only while it hasn't loaded yet.
+  const templateQ = useChecklistTemplate();
+  const template: TemplateSection[] = templateQ.data
+    ? templateToSections(templateQ.data)
+    : DEFAULT_TEMPLATE;
+
+  function handleToggle(_id: string, name: string) {
+    // The effect above loads the checklist detail for whichever row is expanded.
     setExpandedRaw(expanded === name ? null : name);
-    if (isExpanding && !detailCache[id]) {
-      try {
-        const detail = await staffApi.getById(id);
-        setDetailCache((prev) => ({ ...prev, [id]: detail }));
-      } catch { /* show empty state */ }
-    }
   }
 
   function openModal() { setForm(EMPTY_STAFF_FORM); setModalOpen(true); }
   function closeModal() { setModalOpen(false); }
+
+  async function handleItemToggle(staffId: string, item: OnboardingItemDto) {
+    if (togglingIds.has(item.id)) return;
+    setTogglingIds((prev) => new Set(prev).add(item.id));
+    setSaveError(null);
+    try {
+      const updated = await staffApi.setOnboardingItem(staffId, item.id, !item.isCompleted);
+      setDetailCache((prev) => ({ ...prev, [staffId]: updated }));
+      // The summary list's progress % is served by the backend — refresh it.
+      queryClient.invalidateQueries({ queryKey: queryKeys.staff, exact: true });
+    } catch (e) {
+      setSaveError(e instanceof ApiError && e.detail ? e.detail : "Couldn't update the checklist item — try again.");
+    } finally {
+      setTogglingIds((prev) => { const next = new Set(prev); next.delete(item.id); return next; });
+    }
+  }
+
+  async function handleTemplateSave(sections: TemplateSection[]) {
+    setSaveError(null);
+    try {
+      const saved = await staffApi.updateChecklistTemplate(sectionsToTemplate(sections));
+      queryClient.setQueryData(queryKeys.checklistTemplate, saved);
+    } catch (e) {
+      setSaveError(e instanceof ApiError && e.detail ? e.detail : "Couldn't save the checklist template — try again.");
+    }
+  }
+
+  function handleExport() {
+    const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+    const rows = [
+      ["Name", "Role", "Programs", "Start date", "Onboarding %"],
+      ...staffList.map((s) => [s.fullName, s.role, s.programNames.join("; "), s.startDate, String(s.onboardingProgressPct)]),
+    ];
+    const blob = new Blob([rows.map((r) => r.map(esc).join(",")).join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "staff-onboarding.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   async function handleSubmit() {
     const dto: CreateStaffDto = {
@@ -127,8 +219,13 @@ export default function StaffPage() {
 
     setSaveError(null);
     try {
-      await staffApi.create(dto);
-      queryClient.invalidateQueries({ queryKey: queryKeys.staff });
+      const created = await staffApi.create(dto);
+      // The response carries the checklist just issued from the template —
+      // cache it and expand the new member so their checklist is visible.
+      setDetailCache((prev) => ({ ...prev, [created.id]: created }));
+      setExpandedRaw(created.fullName);
+      setFilter("all");
+      queryClient.invalidateQueries({ queryKey: queryKeys.staff, exact: true });
     } catch (e) {
       // A failed save must not fabricate a placeholder row (#35).
       setSaveError(e instanceof ApiError && e.detail ? e.detail : "Couldn't add the staff member — try again.");
@@ -149,7 +246,7 @@ export default function StaffPage() {
           <h1>Staff Onboarding</h1>
         </div>
         <div className="right">
-          <button className="ss-btn" type="button">
+          <button className="ss-btn" type="button" onClick={handleExport} disabled={staffList.length === 0}>
             <Download className="ss-btn-icon" />Export
           </button>
           <button className="ss-btn ss-btn-primary" type="button" onClick={openModal}>
@@ -167,14 +264,30 @@ export default function StaffPage() {
         </div>
 
         <div className="row tight" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <span className="ss-chip is-active mjc">All staff</span>
-          <span className="ss-chip">Complete</span>
-          <span className="ss-chip">In progress</span>
-          <span className="ss-chip">New hires</span>
+          {([["all", "All staff"], ["complete", "Complete"], ["inprogress", "In progress"], ["new", "New hires"]] as [StaffFilter, string][]).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              className={`ss-chip${filter === key ? " is-active mjc" : ""}`}
+              style={{ cursor: "pointer" }}
+              onClick={() => setFilter(key)}
+            >
+              {label}
+            </button>
+          ))}
           <span style={{ width: 1, height: 22, background: "var(--border-strong)", margin: "0 4px" }} />
-          <span className="ss-chip" style={{ background: "var(--danger-fill)", color: "var(--danger-text)", borderColor: "var(--danger-border)" }}>
+          <button
+            type="button"
+            className="ss-chip"
+            style={{
+              cursor: "pointer",
+              background: "var(--danger-fill)", color: "var(--danger-text)", borderColor: "var(--danger-border)",
+              ...(filter === "alerts" ? { outline: "1.5px solid var(--danger)" } : {}),
+            }}
+            onClick={() => setFilter(filter === "alerts" ? "all" : "alerts")}
+          >
             <AlertCircle style={{ width: 12, height: 12 }} />Renewals due
-          </span>
+          </button>
         </div>
 
         <div className="staff-layout">
@@ -204,7 +317,11 @@ export default function StaffPage() {
               <div style={{ padding: "40px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>
                 No staff members yet — add one to get started.
               </div>
-            ) : staffList.map((s) => {
+            ) : staffList.filter((s) => matchesFilter(s, filter)).length === 0 ? (
+              <div style={{ padding: "40px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>
+                No staff members match this filter.
+              </div>
+            ) : staffList.filter((s) => matchesFilter(s, filter)).map((s) => {
               const isExpanded = expanded === s.fullName;
               const pct = s.onboardingProgressPct;
               const barCls = progressBarCls(pct);
@@ -254,9 +371,17 @@ export default function StaffPage() {
                             <div className="check-sec-label">{section}</div>
                             {items.map((item) => (
                               <div className={`ss-checkrow${item.isCompleted ? " is-done" : ""}`} key={item.id}>
-                                <span className={`ss-checkbox${item.isCompleted ? " is-checked" : ""}`}>
+                                <button
+                                  type="button"
+                                  className={`ss-checkbox${item.isCompleted ? " is-checked" : ""}`}
+                                  style={{ padding: 0, opacity: togglingIds.has(item.id) ? 0.5 : 1 }}
+                                  aria-pressed={item.isCompleted}
+                                  aria-label={`${item.isCompleted ? "Mark incomplete" : "Mark complete"}: ${item.label}`}
+                                  disabled={togglingIds.has(item.id)}
+                                  onClick={() => handleItemToggle(s.id, item)}
+                                >
                                   {item.isCompleted && <Check />}
-                                </span>
+                                </button>
                                 <span className="ss-checkrow-label">{item.label}</span>
                                 {item.expiryDate ? (
                                   <span className="ss-date-expired" style={{ marginLeft: "auto" }}>
@@ -357,10 +482,19 @@ export default function StaffPage() {
         <EditChecklistModal
           template={template}
           onClose={() => setTemplateOpen(false)}
-          onSave={(t) => setTemplate(t)}
+          onSave={handleTemplateSave}
         />
       )}
     </div>
+  );
+}
+
+// useSearchParams requires a Suspense boundary for static prerendering.
+export default function StaffPage() {
+  return (
+    <Suspense fallback={null}>
+      <StaffPageInner />
+    </Suspense>
   );
 }
 

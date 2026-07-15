@@ -1,10 +1,12 @@
 import React from "react";
+import Link from "next/link";
 
 export default function Widget({
   id,
   title,
   icon,
   linkText,
+  linkHref,
   children,
   bodyClass,
 }: {
@@ -12,6 +14,7 @@ export default function Widget({
   title: string;
   icon?: React.ReactNode;
   linkText?: string;
+  linkHref?: string;
   children: React.ReactNode;
   bodyClass?: string;
 }) {
@@ -21,9 +24,9 @@ export default function Widget({
         {icon}
         <h3 id={id}>{title}</h3>
         {linkText ? (
-          <a className="link" href="#">
+          <Link className="link" href={linkHref ?? "#"}>
             {linkText}
-          </a>
+          </Link>
         ) : null}
       </div>
       <div className={`widget-body ${bodyClass ?? ""}`.trim()}>{children}</div>
