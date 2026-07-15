@@ -24,6 +24,16 @@ function roleFromJwt(token: string): string | null {
   }
 }
 
+// Pages only Admin accounts may open; teacher (Staff) accounts are bounced to the
+// dashboard. The backend enforces the same split on the corresponding API endpoints.
+const ADMIN_ONLY_PREFIXES = [
+  "/users",
+  "/staff",
+  "/reports",
+  "/cohort-rollup",
+  "/settings",
+];
+
 export function proxy(request: NextRequest) {
   const hasSession =
     request.cookies.has(ACCESS_COOKIE) || request.cookies.has(REFRESH_COOKIE);
@@ -33,7 +43,8 @@ export function proxy(request: NextRequest) {
   }
 
   // Admin-only pages: staff users get bounced to the dashboard.
-  if (request.nextUrl.pathname.startsWith("/users")) {
+  const { pathname } = request.nextUrl;
+  if (ADMIN_ONLY_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
     const token = request.cookies.get(ACCESS_COOKIE)?.value;
     if (!token || roleFromJwt(token) !== "Admin") {
       return NextResponse.redirect(new URL("/dashboard", request.url));

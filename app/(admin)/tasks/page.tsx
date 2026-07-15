@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { tasksApi } from "@/lib/api/tasks";
 import { useProjects, useStaff, queryKeys } from "@/lib/api/hooks";
+import { useAuth } from "@/lib/auth/AuthProvider";
 import LoadError from "@/app/components/LoadError";
 import { ApiError } from "@/lib/api/client";
 import type {
@@ -28,7 +29,10 @@ import type {
 import {
   AddTaskModal,
   EMPTY_TASK_FORM,
+  NewProjectModal,
+  EMPTY_PROJECT_FORM,
   type AddTaskForm,
+  type NewProjectForm,
   type Task,
   type Project,
   type TaskStatus,
@@ -96,8 +100,10 @@ function dtoToTask(dto: ProjectTaskDto, staffList: StaffSummaryDto[]): Task {
   const staff = staffList.find((s) => s.id === dto.assignedToId);
   const arole = staff ? staff.role.toLowerCase() : "admin";
   return {
+    id: dto.id,
     name: dto.name,
     ctx: dto.context ?? undefined,
+    assignedToId: dto.assignedToId,
     ai: dto.assignedToInitials ?? "?",
     ar: arole,
     an: dto.assignedToName ?? "Unassigned",
@@ -140,6 +146,7 @@ function dtoToProject(dto: ProjectDto, staffList: StaffSummaryDto[]): Project {
 export default function TasksPage() {
   // Cached + shared via React Query (#34).
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const projectsQ = useProjects();
   const staffQ = useStaff();
   const staffList: StaffSummaryDto[] = staffQ.data ?? [];
@@ -153,6 +160,9 @@ export default function TasksPage() {
   const [doneTasks, setDoneTasks] = useState<Record<string, boolean>>({});
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<AddTaskForm>(EMPTY_TASK_FORM);
+  const [projModalOpen, setProjModalOpen] = useState(false);
+  const [projForm, setProjForm] = useState<NewProjectForm>(EMPTY_PROJECT_FORM);
+  const [view, setView] = useState<"project" | "my" | "all">("project");
   const [typeFilter, setTypeFilter] = useState<"all" | "production" | "staff" | "admin" | "event">("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [overdueOnly, setOverdueOnly] = useState(false);
@@ -168,17 +178,64 @@ export default function TasksPage() {
     blocked:  allTasks.filter((t) => t.status === "blocked").length,
   };
 
+  // "My tasks" matches on the staff member linked to the signed-in account;
+  // fall back to a name match when the link isn't set.
+  const myStaffId =
+    user?.staffMemberId ??
+    staffList.find((s) => s.fullName === user?.fullName)?.id ??
+    null;
+
   const isCollapsed = (id: string) => collapsedMap[id] ?? true;
   const toggleProject = (id: string) =>
     setCollapsedMap((prev) => ({ ...prev, [id]: !isCollapsed(id) }));
-  const toggleTask = (key: string) =>
-    setDoneTasks((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  // Checking a task off persists to the API. doneTasks holds only the optimistic
+  // override while the save is in flight; once the refetch lands, server state wins.
+  async function toggleTask(t: Task) {
+    const nowDone = !(doneTasks[t.id] ?? t.status === "done");
+    setDoneTasks((prev) => ({ ...prev, [t.id]: nowDone }));
+    const clearOverride = () =>
+      setDoneTasks((prev) => {
+        const rest = { ...prev };
+        delete rest[t.id];
+        return rest;
+      });
+    try {
+      await tasksApi.updateTask(t.id, { taskStatus: nowDone ? "Done" : "Upcoming" });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.projects });
+      clearOverride();
+    } catch (e) {
+      clearOverride();
+      setSaveError(e instanceof ApiError && e.detail ? e.detail : "Couldn't update the task — try again.");
+    }
+  }
 
   function openModal(targetProjectIdx: number | null = null) {
     setForm({ ...EMPTY_TASK_FORM, projectIdx: targetProjectIdx });
     setModalOpen(true);
   }
   function closeModal() { setModalOpen(false); }
+
+  function openProjModal() {
+    setProjForm(EMPTY_PROJECT_FORM);
+    setProjModalOpen(true);
+  }
+
+  async function handleProjectSubmit() {
+    setProjModalOpen(false);
+    try {
+      await tasksApi.createProject({
+        title: projForm.title.trim(),
+        type: projForm.type,
+        status: projForm.status,
+        scope: projForm.scope.trim() || undefined,
+        dueDate: projForm.due || undefined,
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects });
+    } catch (e) {
+      setSaveError(e instanceof ApiError && e.detail ? e.detail : "Couldn't create the project — try again.");
+    }
+  }
 
   async function handleSubmit() {
     if (form.projectIdx === null) return;
@@ -210,11 +267,11 @@ export default function TasksPage() {
         </div>
         <div className="right">
           <div className="seg">
-            <button className="is-active">By project</button>
-            <button>My tasks</button>
-            <button>All tasks</button>
+            <button className={view === "project" ? "is-active" : ""} onClick={() => setView("project")}>By project</button>
+            <button className={view === "my" ? "is-active" : ""} onClick={() => setView("my")}>My tasks</button>
+            <button className={view === "all" ? "is-active" : ""} onClick={() => setView("all")}>All tasks</button>
           </div>
-          <button className="ss-btn" type="button">
+          <button className="ss-btn" type="button" onClick={openProjModal}>
             <FolderPlus className="ss-btn-icon" />New project
           </button>
           <button className="ss-btn ss-btn-primary" type="button" onClick={() => openModal(null)}>
@@ -302,15 +359,80 @@ export default function TasksPage() {
           <div style={{ padding: "40px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>
             No projects yet — create one to get started.
           </div>
-        ) : (() => {
+        ) : view !== "project" ? (() => {
+          if (view === "my" && !myStaffId) return (
+            <div style={{ padding: "40px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>
+              Your account isn&apos;t linked to a staff member, so there are no tasks assigned to you.
+            </div>
+          );
+
+          const flat = projects
+            .flatMap((p) => p.tasks.map((t) => ({ p, t })))
+            .filter(({ p, t }) => {
+              if (view === "my" && t.assignedToId !== myStaffId) return false;
+              if (typeFilter !== "all" && p.type[0] !== typeFilter) return false;
+              if (assigneeFilter !== "all" && t.assignedToId !== assigneeFilter) return false;
+              if (overdueOnly && !(t.overdue || t.status === "overdue")) return false;
+              return true;
+            });
+
+          if (flat.length === 0) return (
+            <div style={{ padding: "40px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>
+              {view === "my" ? "No tasks assigned to you match the current filters." : "No tasks match the current filters."}
+            </div>
+          );
+
+          return (
+            <div className="proj">
+              <table className="tbl">
+                <tbody>
+                  {flat.map(({ p, t }) => {
+                    const isDone = doneTasks[t.id] ?? t.status === "done";
+                    const Tag = TAG[t.status].icon;
+                    return (
+                      <tr key={t.id} className={isDone ? "task-row-done" : ""}>
+                        <td style={{ width: 34 }}>
+                          <span className={`ss-checkbox${isDone ? " is-checked" : ""}`} onClick={(e) => { e.stopPropagation(); toggleTask(t); }}>
+                            <Check />
+                          </span>
+                        </td>
+                        <td>
+                          <div className="task-name">
+                            <span className="tn">{t.name}</span>
+                            <span className="tc">{p.title}{t.ctx ? ` · ${t.ctx}` : ""}</span>
+                          </div>
+                        </td>
+                        {view === "all" && (
+                          <td>
+                            <span className="assignee">
+                              <span className={`ss-avatar ${t.ar} sm`}>{t.ai}</span>
+                              <span>{t.an}</span>
+                            </span>
+                          </td>
+                        )}
+                        <td className={`td-due ${t.overdue ? "overdue" : ""}`}>{t.due}</td>
+                        <td>
+                          <span className={`tag ${t.status}`}>
+                            <Tag />
+                            {TAG[t.status].label}
+                          </span>
+                        </td>
+                        <td style={{ width: 40, textAlign: "center" }}>
+                          <span className={`prio ${t.prio}`} title={`${t.prio} priority`} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          );
+        })() : (() => {
           const filteredItems = projects
             .map((p, idx) => ({ p, idx }))
             .filter(({ p }) => {
               if (typeFilter !== "all" && p.type[0] !== typeFilter) return false;
-              if (assigneeFilter !== "all") {
-                const staff = staffList.find((s) => s.id === assigneeFilter);
-                if (!staff || !p.tasks.some((t) => t.an === staff.fullName)) return false;
-              }
+              if (assigneeFilter !== "all" && !p.tasks.some((t) => t.assignedToId === assigneeFilter)) return false;
               if (overdueOnly && !p.tasks.some((t) => t.overdue || t.status === "overdue")) return false;
               return true;
             });
@@ -354,13 +476,12 @@ export default function TasksPage() {
                   <table className="tbl">
                     <tbody>
                       {p.tasks.map((t) => {
-                        const key = `${p.id}:${t.name}`;
-                        const isDone = doneTasks[key] ?? t.status === "done";
+                        const isDone = doneTasks[t.id] ?? t.status === "done";
                         const Tag = TAG[t.status].icon;
                         return (
-                          <tr key={key} className={isDone ? "task-row-done" : ""}>
+                          <tr key={t.id} className={isDone ? "task-row-done" : ""}>
                             <td style={{ width: 34 }}>
-                              <span className={`ss-checkbox${isDone ? " is-checked" : ""}`} onClick={(e) => { e.stopPropagation(); toggleTask(key); }}>
+                              <span className={`ss-checkbox${isDone ? " is-checked" : ""}`} onClick={(e) => { e.stopPropagation(); toggleTask(t); }}>
                                 <Check />
                               </span>
                             </td>
@@ -402,13 +523,18 @@ export default function TasksPage() {
           );
         });})()}
 
-        <button className="create-proj" type="button">
-          <FolderPlus />Create new project
-        </button>
+        {view === "project" && (
+          <button className="create-proj" type="button" onClick={openProjModal}>
+            <FolderPlus />Create new project
+          </button>
+        )}
       </div>
 
       {modalOpen && (
         <AddTaskModal form={form} setForm={setForm} projects={projects} staffList={staffList} onClose={closeModal} onSubmit={handleSubmit} />
+      )}
+      {projModalOpen && (
+        <NewProjectModal form={projForm} setForm={setProjForm} onClose={() => setProjModalOpen(false)} onSubmit={handleProjectSubmit} />
       )}
     </div>
   );

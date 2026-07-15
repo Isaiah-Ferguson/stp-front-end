@@ -40,6 +40,8 @@ type NavItem = {
   icon?: LucideIcon;
   dot?: "mjc" | "pathways" | "manteca";
   badge?: { text: string; tone: "is-danger" | "is-warning" };
+  /** Only shown to Admin accounts; must stay in sync with ADMIN_ONLY_PREFIXES in proxy.ts. */
+  adminOnly?: boolean;
 };
 
 type NavSection = { label: string; items: NavItem[] };
@@ -67,7 +69,7 @@ const SECTIONS: NavSection[] = [
       { href: "/tracker", label: "Weekly Data", icon: PenLine },
       { href: "/planning", label: "Per-Star Planning", icon: Goal },
       { href: "/year-calendar", label: "Year Calendar", icon: CalendarRange },
-      { href: "/cohort-rollup", label: "Cohort Roll-Up", icon: PieChart },
+      { href: "/cohort-rollup", label: "Cohort Roll-Up", icon: PieChart, adminOnly: true },
       { href: "/games", label: "Games Library", icon: Gamepad2 },
       { href: "/games/develop", label: "To Develop", icon: Lightbulb },
       { href: "/skills", label: "Skills Framework", icon: Target },
@@ -76,7 +78,7 @@ const SECTIONS: NavSection[] = [
   {
     label: "Staff",
     items: [
-      { href: "/staff", label: "Onboarding", icon: UserCheck },
+      { href: "/staff", label: "Onboarding", icon: UserCheck, adminOnly: true },
       { href: "/tasks", label: "Tasks", icon: CheckSquare },
       { href: "/documents", label: "Scripts", icon: BookOpen },
     ],
@@ -84,8 +86,8 @@ const SECTIONS: NavSection[] = [
   {
     label: "Admin",
     items: [
-      { href: "/reports", label: "Reports", icon: BarChart3 },
-      { href: "/settings", label: "Settings", icon: Settings },
+      { href: "/reports", label: "Reports", icon: BarChart3, adminOnly: true },
+      { href: "/settings", label: "Settings", icon: Settings, adminOnly: true },
     ],
   },
 ];
@@ -110,19 +112,19 @@ export default function AdminSidebar() {
     window.location.assign("/");
   }
 
-  // Admins get a Users management entry in the Admin section.
+  // Teachers only see non-admin items; admins additionally get a Users management
+  // entry in the Admin section. Sections left empty for the role are dropped.
+  const isAdmin = user?.role === "Admin";
   const sections: NavSection[] = SECTIONS.map((section) => {
-    if (section.label === "Admin" && user?.role === "Admin") {
+    const items = section.items.filter((item) => isAdmin || !item.adminOnly);
+    if (section.label === "Admin" && isAdmin) {
       return {
         ...section,
-        items: [
-          { href: "/users", label: "Users", icon: UserCog },
-          ...section.items,
-        ],
+        items: [{ href: "/users", label: "Users", icon: UserCog }, ...items],
       };
     }
-    return section;
-  });
+    return { ...section, items };
+  }).filter((section) => section.items.length > 0);
 
   // Close the mobile drawer whenever the route changes.
   useEffect(() => {
@@ -169,7 +171,7 @@ export default function AdminSidebar() {
           color: "var(--fg-secondary)",
           marginTop: 6,
         }}>
-          Admin portal
+          {isAdmin ? "Admin portal" : "Teacher portal"}
         </div>
       </div>
 
