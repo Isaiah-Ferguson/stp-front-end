@@ -157,13 +157,15 @@ export default function AdminSidebar() {
       />
       <nav className={`ss-sidebar adm-sidebar${open ? " is-open" : ""}`}>
       <div className="adm-logo" style={{ alignItems: "center", padding: "12px 12px 8px" }}>
-        <Image
-          src="/logo.png"
-          alt="The Shining Stars Project"
-          width={120}
-          height={80}
-          style={{ width: "auto", display: "block", mixBlendMode: "multiply" }}
-        />
+        <Link href="/dashboard" aria-label="Go to dashboard">
+          <Image
+            src="/logo.png"
+            alt="The Shining Stars Project"
+            width={120}
+            height={80}
+            style={{ width: "auto", display: "block", mixBlendMode: "multiply" }}
+          />
+        </Link>
         <div style={{
           fontSize: "var(--fs-label)",
           letterSpacing: "var(--ls-label)",

@@ -4,13 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   Users, CalendarCheck, AlertCircle, AlertTriangle,
-  Plus, Minus, Check, Clock, X,
+  Minus, Check, Clock, X,
   UserCheck, CheckCircle2, UserPlus, UserMinus,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { programsApi } from "@/lib/api/programs";
-import { useStaff, usePrograms, queryKeys } from "@/lib/api/hooks";
-import AddParticipantModal from "../components/AddParticipantModal";
+import { useStaff, queryKeys } from "@/lib/api/hooks";
+import EnrollStudentModal from "../components/EnrollStudentModal";
 import type { ProgramDetailDto, StaffSummaryDto } from "@/lib/types/api";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -132,7 +132,6 @@ export default function ProgramHub({ slug }: { slug: ProgramSlug }) {
   });
   const detail: ProgramDetailDto | null = detailQ.data ?? null;
   const loading = detailQ.isPending;
-  const programsQ = usePrograms();
   const [addOpen, setAddOpen] = useState(false);
   const [staffOpen, setStaffOpen] = useState(false);
 
@@ -164,8 +163,8 @@ export default function ProgramHub({ slug }: { slug: ProgramSlug }) {
         </div>
         <div className="right">
           <button className="ss-btn ss-btn-primary" type="button" disabled={!detail} onClick={() => setAddOpen(true)}>
-            <Plus className="ss-btn-icon" />
-            Add student
+            <UserPlus className="ss-btn-icon" />
+            Enroll student
           </button>
         </div>
       </div>
@@ -373,9 +372,10 @@ export default function ProgramHub({ slug }: { slug: ProgramSlug }) {
       </div>
 
       {addOpen && detail && (
-        <AddParticipantModal
-          programs={programsQ.data ?? []}
-          defaultProgramId={detail.id}
+        <EnrollStudentModal
+          programId={detail.id}
+          programName={detail.name}
+          slug={slug}
           onClose={() => setAddOpen(false)}
         />
       )}
