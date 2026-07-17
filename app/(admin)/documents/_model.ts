@@ -32,6 +32,8 @@ export const STATUS_STYLE: Record<ScriptStatus, { bg: string; color: string }> =
 };
 
 export type Script = {
+  /** Backend id. Absent only for the demo fallback rows (INITIAL_SCRIPTS). */
+  id?: string;
   title: string;
   subtitle?: string;
   type: ScriptType;
@@ -188,6 +190,7 @@ export function progFromName(name: string): Prog {
 
 export function scriptFromDto(dto: ScriptDto): Script {
   return {
+    id: dto.id,
     title: dto.title,
     subtitle: dto.subtitle ?? undefined,
     type: API_TYPE_TO_LOCAL[dto.type] ?? "play",
@@ -231,4 +234,19 @@ export const EMPTY_FORM: FormState = {
   duration: "",
   status: "draft",
 };
+
+/** Pre-fills the modal form from an existing script (for editing). */
+export function formFromScript(s: Script): FormState {
+  return {
+    title: s.title,
+    subtitle: s.subtitle ?? "",
+    type: s.type,
+    source: s.adapted ? "adapted" : "original",
+    programs: s.programs,
+    castMin: s.castMin != null ? String(s.castMin) : "",
+    castMax: s.castMax != null ? String(s.castMax) : "",
+    duration: s.duration === "TBD" ? "" : s.duration,
+    status: s.status,
+  };
+}
 

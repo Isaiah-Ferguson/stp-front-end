@@ -23,6 +23,7 @@ import {
   LOCAL_TYPE_TO_API,
   LOCAL_STATUS_TO_API,
   scriptFromDto,
+  formFromScript,
 } from "./_model";
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -34,6 +35,8 @@ export default function DocumentsPage() {
   const [progFilter, setProgFilter] = useState<"all" | Prog>("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  // The script being edited; null means the modal is in "add" mode.
+  const [editingScript, setEditingScript] = useState<Script | null>(null);
   const [selectedScript, setSelectedScript] = useState<Script | null>(null);
   // program slug → GUID, so newly-created scripts can be linked to real programs.
   const [progIdBySlug, setProgIdBySlug] = useState<Record<string, string>>({});
@@ -76,20 +79,34 @@ export default function DocumentsPage() {
   );
 
   function openModal() {
+    setEditingScript(null);
     setForm(EMPTY_FORM);
+    setModalOpen(true);
+  }
+
+  function openEdit(script: Script) {
+    setEditingScript(script);
+    setForm(formFromScript(script));
+    setSelectedScript(null);
     setModalOpen(true);
   }
 
   function closeModal() {
     setModalOpen(false);
+    setEditingScript(null);
   }
 
   function handleSubmit() {
     const min = form.castMin ? parseInt(form.castMin, 10) : undefined;
     const max = form.castMax ? parseInt(form.castMax, 10) : undefined;
     const year = new Date().getFullYear();
+    const programIds = form.programs
+      .map((p) => progIdBySlug[p])
+      .filter((id): id is string => Boolean(id));
 
-    const newScript: Script = {
+    const editing = editingScript;
+    const nextScript: Script = {
+      id: editing?.id,
       title: form.title.trim(),
       subtitle: form.subtitle.trim() || undefined,
       type: form.type,
@@ -99,31 +116,51 @@ export default function DocumentsPage() {
       castMin: min,
       castMax: max,
       duration: form.duration.trim() || "TBD",
-      lastUsed: form.status === "draft" ? `Planned: ${year}` : "—",
+      lastUsed: editing?.lastUsed ?? (form.status === "draft" ? `Planned: ${year}` : "—"),
       status: form.status,
     };
 
-    // Optimistically show it immediately so the demo stays snappy.
-    setScripts((prev) => [newScript, ...prev]);
+    const payload = {
+      title: nextScript.title,
+      subtitle: nextScript.subtitle,
+      type: LOCAL_TYPE_TO_API[form.type],
+      status: LOCAL_STATUS_TO_API[form.status],
+      isOriginal: nextScript.original,
+      isAdapted: nextScript.adapted,
+      castMin: min,
+      castMax: max,
+      duration: form.duration.trim() || undefined,
+      programIds,
+    };
+
     setStatusFilter(form.status);
     closeModal();
 
+    if (editing) {
+      // Optimistically replace the edited row in place (match by identity or id).
+      setScripts((prev) =>
+        prev.map((s) => (s === editing || (editing.id && s.id === editing.id) ? nextScript : s))
+      );
+      // Persist only if this row is backed by a real library record.
+      if (editing.id) {
+        scriptsApi
+          .update(editing.id, payload)
+          .catch((err) => console.error("Failed to update script in the library:", err));
+      }
+      return;
+    }
+
+    // Create: optimistically show it immediately so the UI stays snappy.
+    setScripts((prev) => [nextScript, ...prev]);
+
     // Persist to the library (#18), best-effort — a backend error must not lose the UI entry.
-    const programIds = form.programs
-      .map((p) => progIdBySlug[p])
-      .filter((id): id is string => Boolean(id));
     scriptsApi
-      .create({
-        title: newScript.title,
-        subtitle: newScript.subtitle,
-        type: LOCAL_TYPE_TO_API[form.type],
-        status: LOCAL_STATUS_TO_API[form.status],
-        isOriginal: newScript.original,
-        isAdapted: newScript.adapted,
-        castMin: min,
-        castMax: max,
-        duration: form.duration.trim() || undefined,
-        programIds,
+      .create(payload)
+      .then((created) => {
+        // Backfill the real id so the new card can be edited without a page refresh.
+        if (created?.id) {
+          setScripts((prev) => prev.map((s) => (s === nextScript ? { ...s, id: created.id } : s)));
+        }
       })
       .catch((err) => console.error("Failed to save script to the library:", err));
   }
@@ -227,7 +264,7 @@ export default function DocumentsPage() {
           >
             {visible.map((script) => (
               <ScriptCard
-                key={script.title}
+                key={script.id ?? script.title}
                 script={script}
                 onViewDetails={() => setSelectedScript(script)}
               />
@@ -272,6 +309,7 @@ export default function DocumentsPage() {
           setForm={setForm}
           onClose={closeModal}
           onSubmit={handleSubmit}
+          mode={editingScript ? "edit" : "add"}
         />
       )}
 
@@ -279,6 +317,7 @@ export default function DocumentsPage() {
         <ScriptDetailPanel
           script={selectedScript}
           onClose={() => setSelectedScript(null)}
+          onEdit={() => openEdit(selectedScript)}
         />
       )}
     </div>

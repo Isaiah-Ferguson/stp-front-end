@@ -14,6 +14,7 @@ import {
   Check,
   Calendar,
   Tag,
+  Pencil,
 } from "lucide-react";
 
 import { useDialogFocus } from "@/lib/useDialogFocus";
@@ -35,12 +36,15 @@ export function AddScriptModal({
   setForm,
   onClose,
   onSubmit,
+  mode = "add",
 }: {
   form: FormState;
   setForm: React.Dispatch<React.SetStateAction<FormState>>;
   onClose: () => void;
   onSubmit: () => void;
+  mode?: "add" | "edit";
 }) {
+  const isEdit = mode === "edit";
   const canSubmit = form.title.trim().length > 0 && form.programs.length > 0;
   useEscapeKey(onClose);
   const panelRef = useDialogFocus<HTMLDivElement>();
@@ -77,7 +81,7 @@ export function AddScriptModal({
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Add script"
+        aria-label={isEdit ? "Edit script" : "Add script"}
         style={{
           background: "var(--surface)",
           borderRadius: "var(--r-lg)",
@@ -100,9 +104,11 @@ export function AddScriptModal({
           }}
         >
           <div>
-            <h3 style={{ fontSize: 15, fontWeight: 500, margin: "0 0 2px" }}>Add script</h3>
+            <h3 style={{ fontSize: 15, fontWeight: 500, margin: "0 0 2px" }}>
+              {isEdit ? "Edit script" : "Add script"}
+            </h3>
             <div style={{ fontSize: 12, color: "var(--fg-tertiary)" }}>
-              Script will be saved to the library
+              {isEdit ? "Changes will be saved to the library" : "Script will be saved to the library"}
             </div>
           </div>
           <button
@@ -354,7 +360,7 @@ export function AddScriptModal({
             disabled={!canSubmit}
           >
             <Check className="ss-btn-icon" />
-            Add script
+            {isEdit ? "Save changes" : "Add script"}
           </button>
         </div>
       </div>
@@ -364,7 +370,15 @@ export function AddScriptModal({
 
 // ── Script Detail Panel ───────────────────────────────────────────────────────
 
-export function ScriptDetailPanel({ script, onClose }: { script: Script; onClose: () => void }) {
+export function ScriptDetailPanel({
+  script,
+  onClose,
+  onEdit,
+}: {
+  script: Script;
+  onClose: () => void;
+  onEdit?: () => void;
+}) {
   useEscapeKey(onClose);
   const panelRef = useDialogFocus<HTMLDivElement>();
   const TypeIcon = script.type === "musical" ? Music2 : FileText;
@@ -600,10 +614,21 @@ export function ScriptDetailPanel({ script, onClose }: { script: Script; onClose
             background: "var(--bg)",
           }}
         >
+          {onEdit && (
+            <button
+              type="button"
+              className="ss-btn ss-btn-primary"
+              onClick={onEdit}
+              style={{ flex: 1, justifyContent: "center" }}
+            >
+              <Pencil className="ss-btn-icon" />
+              Edit script
+            </button>
+          )}
           <button
             type="button"
             className="ss-btn"
-            style={{ flex: 1, justifyContent: "center" }}
+            style={{ flex: onEdit ? undefined : 1, justifyContent: "center" }}
           >
             <Download className="ss-btn-icon" />
             Download PDF
