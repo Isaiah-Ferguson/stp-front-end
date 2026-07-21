@@ -88,7 +88,7 @@ export default function CohortRollUpPage() {
       <div className="adm-content">
         <div className="info-note" style={{ marginBottom: "var(--space-2)" }}>
           <BarChart3 />
-          <span>Where the cohort lives this month — how many Stars sit at each level per skill, from <strong>confirmed</strong> month-end levels only. Computed live; confirm levels in each Star&apos;s Weekly tracker to populate it.</span>
+          <span>Where the cohort lives this month — how many students sit at each level per skill, from <strong>confirmed</strong> month-end levels only. Computed live; confirm levels in each student&apos;s Weekly tracker to populate it.</span>
         </div>
 
         {/* program filter */}
@@ -108,7 +108,7 @@ export default function CohortRollUpPage() {
 
         {/* stat tiles */}
         <div className="board-stats">
-          <div className="board-stat"><span className="num">{data?.participantCount ?? 0}</span><span className="label">Stars Scored</span></div>
+          <div className="board-stat"><span className="num">{data?.participantCount ?? 0}</span><span className="label">Students Scored</span></div>
           <div className="board-stat"><span className="num">{skillsWithData}</span><span className="label">Skills With Data</span></div>
           <div className="board-stat"><span className="num">{totalConfirmed}</span><span className="label">Confirmed Levels</span></div>
         </div>
@@ -128,7 +128,7 @@ export default function CohortRollUpPage() {
           <div style={{ padding: "40px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>Loading…</div>
         ) : totalConfirmed === 0 ? (
           <div style={{ padding: "40px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>
-            No confirmed levels for {data?.programName ?? "any program"} this month yet. Confirm month-end levels in a Star&apos;s Weekly tracker to see the cohort here.
+            No confirmed levels for {data?.programName ?? "any program"} this month yet. Confirm month-end levels in a student&apos;s Weekly tracker to see the cohort here.
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>

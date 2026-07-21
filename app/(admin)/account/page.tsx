@@ -102,8 +102,6 @@ export default function AccountPage() {
 
   return (
     <>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-
       <div className="adm-main">
         <div className="adm-topbar">
           <div className="titles">

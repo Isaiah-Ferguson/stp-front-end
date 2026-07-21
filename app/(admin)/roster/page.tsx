@@ -103,13 +103,13 @@ export default function RosterPage() {
         <div className="info-note" style={{ marginBottom: "var(--space-2)" }}>
           <Users2 />
           <span>
-            Each Star&apos;s Group, Site, and assigned staff for <strong>Q{quarter} {year}</strong>. Term-scoped —
+            Each student&apos;s Group, Site, and assigned staff for <strong>Q{quarter} {year}</strong>. Term-scoped —
             picking a new quarter starts a fresh snapshot; history is preserved. Changes save automatically.
           </span>
         </div>
 
         <div className="board-stats">
-          <div className="board-stat"><span className="num">{entries.length}</span><span className="label">Stars</span></div>
+          <div className="board-stat"><span className="num">{entries.length}</span><span className="label">Students</span></div>
           <div className="board-stat"><span className="num green">{assigned}</span><span className="label">Fully Assigned</span></div>
           <div className="board-stat"><span className="num">{counted}</span><span className="label">Counted 1:6</span></div>
         </div>
@@ -121,7 +121,7 @@ export default function RosterPage() {
         ) : loading ? (
           <div style={{ padding: "40px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>Loading roster…</div>
         ) : entries.length === 0 ? (
-          <div style={{ padding: "40px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>No participants yet.</div>
+          <div style={{ padding: "40px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>No students yet.</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
             {byProgram.map((prog) => (
@@ -136,7 +136,7 @@ export default function RosterPage() {
                   <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 720 }}>
                     <thead>
                       <tr style={{ borderBottom: "0.5px solid var(--border)" }}>
-                        {["Star", "Group", "Site", "Assigned staff", "1:6", "Notes"].map((h) => (
+                        {["Student", "Group", "Site", "Assigned staff", "1:6", "Notes"].map((h) => (
                           <th key={h} className="ss-label" style={{ textAlign: "left", padding: "8px 12px", color: "var(--fg-tertiary)", fontWeight: "var(--w-regular)", whiteSpace: "nowrap" }}>{h}</th>
                         ))}
                       </tr>

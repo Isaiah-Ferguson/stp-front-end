@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { parseLocalDate } from "@/lib/format";
 import Link from "next/link";
 import {
   Users, CalendarCheck, AlertCircle, AlertTriangle,
@@ -203,12 +204,12 @@ export default function ProgramHub({ slug }: { slug: ProgramSlug }) {
           </div>
         </div>
 
-        {/* row 2: participants + this week */}
+        {/* row 2: students + this week */}
         <div className="adm-row2">
           <div className="widget">
             <div className="widget-head">
               <Users className="ico" style={{ color: colorVar }} />
-              <h3>Participants</h3>
+              <h3>Students</h3>
               <Link className="link" href="/students">View all</Link>
             </div>
             <div className="widget-body">
@@ -255,7 +256,7 @@ export default function ProgramHub({ slug }: { slug: ProgramSlug }) {
               ) : (
                 <>
                   {events.slice(0, 3).map((e) => {
-                    const d = new Date(e.date + "T12:00:00");
+                    const d = parseLocalDate(e.date);
                     return (
                       <div className="event-row" key={e.id}>
                         <div className="event-date">
@@ -275,7 +276,7 @@ export default function ProgramHub({ slug }: { slug: ProgramSlug }) {
                     <div style={{ marginTop: "var(--space-3)", paddingTop: "var(--space-3)", borderTop: "0.5px solid var(--border)" }}>
                       <div className="ss-label" style={{ marginBottom: 8 }}>More upcoming</div>
                       {events.slice(3).map((e) => {
-                        const d = new Date(e.date + "T12:00:00");
+                        const d = parseLocalDate(e.date);
                         const date = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
                         return (
                           <div key={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "6px 0", borderBottom: "0.5px solid var(--border)" }}>

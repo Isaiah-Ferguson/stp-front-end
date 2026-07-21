@@ -203,6 +203,14 @@ table.tbl { width: 100%; min-width: 1040px; border-collapse: collapse; font-size
   white-space: nowrap;
 }
 .tbl thead th.sortable { cursor: pointer; }
+/* the sortable header's label is a real button so keyboard users can sort */
+.th-sort {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: none; border: none; padding: 0; margin: 0; cursor: pointer;
+  font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit;
+}
+.th-sort:hover { color: var(--fg); }
+.th-sort:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 2px; }
 .tbl thead th .caret { display: inline-flex; vertical-align: middle; margin-left: 3px; color: var(--fg-tertiary); }
 .tbl thead th .caret svg { width: 12px; height: 12px; }
 .tbl tbody td { padding: var(--space-3) var(--space-3); border-bottom: var(--bw) solid var(--border); vertical-align: middle; }
@@ -373,6 +381,8 @@ button.chk { cursor: pointer; }
 /* shared dark button */
 .ss-btn-dark { background: var(--fg); border-color: var(--fg); color: #fff; }
 .ss-btn-dark:hover { background: #000; border-color: #000; }
+.ss-btn-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.ss-btn-danger:hover { background: var(--danger-text); border-color: var(--danger-text); }
 
 /* ============================================================
    STAFF ONBOARDING COMPLIANCE TRACKER
@@ -425,6 +435,81 @@ button.chk { cursor: pointer; }
 .section h3 { font-size: var(--fs-h3); }
 .info-note { display: flex; gap: var(--space-2); padding: var(--space-3); border-radius: var(--r-md); background: var(--info-fill); color: var(--info-text); font-size: var(--fs-meta); line-height: 1.5; }
 .info-note svg { width: 14px; height: 14px; flex: 0 0 14px; margin-top: 1px; color: var(--info); }
+
+/* ============================================================
+   EMPTY STATE — icon badge + heading + guidance (+ optional action).
+   The single source for the "nothing here / couldn't load" shape.
+   ============================================================ */
+.ss-empty { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); padding: var(--space-8) var(--space-5); text-align: center; }
+.ss-empty-badge {
+  width: 44px; height: 44px; border-radius: var(--r-md);
+  background: var(--bg-secondary); color: var(--fg-secondary);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.ss-empty-badge.is-danger { background: var(--danger-fill); color: var(--danger); }
+.ss-empty-badge svg { width: 22px; height: 22px; }
+.ss-empty h3 { font-size: 15px; font-weight: var(--w-medium); color: var(--fg); }
+.ss-empty p { max-width: 340px; }
+
+/* ============================================================
+   BULK ACTIONS BAR — appears when table rows are selected.
+   ============================================================ */
+.bulk-bar {
+  display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;
+  padding: var(--space-2) var(--space-3); margin-bottom: var(--space-3);
+  background: var(--primary-fill); border: var(--bw) solid var(--primary-text);
+  border-radius: var(--r-md);
+}
+.bulk-bar .count { font-size: var(--fs-meta); font-weight: var(--w-medium); color: var(--primary-text); }
+.bulk-bar .bulk-err { font-size: var(--fs-meta); color: var(--danger-text); }
+.bulk-bar .spacer { flex: 1 1 auto; }
+.bulk-menu { position: relative; display: inline-flex; }
+.bulk-menu-pop {
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 30;
+  min-width: 190px; max-height: 260px; overflow-y: auto;
+  background: var(--surface); border: var(--bw) solid var(--border-hover);
+  border-radius: var(--r-md); padding: 4px; display: flex; flex-direction: column;
+}
+.bulk-menu-item {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 7px 10px; border: none; background: none; cursor: pointer;
+  font: inherit; font-size: var(--fs-body); color: var(--fg); text-align: left;
+  border-radius: var(--r-sm); white-space: nowrap;
+}
+.bulk-menu-item:hover { background: var(--bg-tertiary); }
+.bulk-menu-item:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.bulk-menu-item.is-danger { color: var(--danger-text); }
+
+/* ============================================================
+   SETTINGS HUB — grouped link cards routing to management surfaces
+   ============================================================ */
+.settings-section { margin-top: var(--space-6); }
+.settings-section > .settings-eyebrow {
+  font-size: var(--fs-label); text-transform: uppercase; letter-spacing: var(--ls-label);
+  color: var(--fg-tertiary); font-weight: var(--w-medium); margin-bottom: var(--space-3);
+}
+.settings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-4); }
+.settings-card {
+  display: flex; align-items: flex-start; gap: var(--space-3);
+  padding: var(--space-4); border: var(--bw) solid var(--border); border-radius: var(--r-lg);
+  background: var(--surface); text-decoration: none; color: inherit;
+  transition: border-color .12s ease, background .12s ease;
+}
+.settings-card:hover { border-color: var(--border-hover); background: var(--bg); }
+.settings-card:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.settings-card .ico-badge {
+  width: 36px; height: 36px; flex-shrink: 0; border-radius: var(--r-md);
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--bg-secondary); color: var(--fg-secondary);
+}
+.settings-card .ico-badge svg { width: 18px; height: 18px; }
+.settings-card .body { min-width: 0; flex: 1; }
+.settings-card .body h3 { font-size: var(--fs-h3); font-weight: var(--w-medium); color: var(--fg); line-height: var(--lh-tight); }
+.settings-card .body p { font-size: var(--fs-meta); color: var(--fg-secondary); line-height: 1.5; margin-top: 3px; }
+.settings-card .go { flex-shrink: 0; align-self: center; color: var(--fg-tertiary); transition: transform .12s ease, color .12s ease; }
+.settings-card .go svg { width: 16px; height: 16px; display: block; }
+.settings-card:hover .go { color: var(--fg-secondary); transform: translateX(2px); }
+.settings-overview { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 
 /* ============================================================
    RESPONSIVE

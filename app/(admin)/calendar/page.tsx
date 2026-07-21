@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { Plus, ChevronLeft, ChevronRight, MapPin, Clock, X } from "lucide-react";
+import { parseLocalDate } from "@/lib/format";
 import { calendarApi } from "@/lib/api/calendar";
 import { usePrograms } from "@/lib/api/hooks";
 import type { CalendarEventDto, ProgramSummaryDto, CreateCalendarEventDto } from "@/lib/types/api";
@@ -203,7 +204,7 @@ export default function CalendarPage() {
   // Group events by day-of-month
   const eventsByDay = useMemo(() => {
     return events.reduce((acc, e) => {
-      const d = new Date(e.date + "T12:00:00").getDate();
+      const d = parseLocalDate(e.date).getDate();
       (acc[d] = acc[d] ?? []).push(e);
       return acc;
     }, {} as Record<number, CalendarEventDto[]>);
@@ -243,7 +244,7 @@ export default function CalendarPage() {
   const otherEvents = useMemo(() => {
     return events
       .filter(e => {
-        const d = new Date(e.date + "T12:00:00").getDate();
+        const d = parseLocalDate(e.date).getDate();
         return detailDay === null || d !== detailDay;
       })
       .sort((a, b) => a.date.localeCompare(b.date))
@@ -368,7 +369,7 @@ export default function CalendarPage() {
                   <div className="detail-h">{isCurrentMonth ? "Upcoming" : MONTH_NAMES[viewMonth - 1]}</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
                     {otherEvents.map(e => {
-                      const label = new Date(e.date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                      const label = parseLocalDate(e.date).toLocaleDateString("en-US", { month: "short", day: "numeric" });
                       return (
                         <div key={e.id} className="evt-card">
                           <div className="et">
@@ -395,7 +396,7 @@ export default function CalendarPage() {
           defaultDate={defaultDate}
           onClose={() => setAddOpen(false)}
           onCreated={(e) => {
-            const eDate = new Date(e.date + "T12:00:00");
+            const eDate = parseLocalDate(e.date);
             if (eDate.getMonth() + 1 === viewMonth && eDate.getFullYear() === viewYear) {
               setEvents(prev => [...prev, e]);
             }

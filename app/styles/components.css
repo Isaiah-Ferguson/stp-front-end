@@ -518,3 +518,26 @@
   text-transform: uppercase;
   color: var(--fg-secondary);
 }
+
+/* ============================================================
+   SKELETON — flat loading placeholder. Opacity pulse only
+   (no gradient shimmer — keeps the flat design language).
+   ============================================================ */
+.ss-skeleton {
+  display: block;
+  background: var(--bg-tertiary);
+  border-radius: var(--r-sm);
+  animation: ss-pulse 1.4s ease-in-out infinite;
+}
+.ss-skeleton.circle { border-radius: var(--r-circle); }
+@keyframes ss-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ss-skeleton { animation: none; opacity: 0.7; }
+}
+
+/* stacked list-row skeleton — mirrors the avatar + two-line widget rows */
+.ss-skel-row { display: flex; align-items: center; gap: var(--space-3); padding: 10px var(--space-4); }
+.ss-skel-row .lines { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }

@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { parseLocalDate } from "@/lib/format";
 import {
   FolderPlus,
   Plus,
@@ -92,7 +93,7 @@ const PRIO_API_MAP: Record<Prio, string> = {
 
 function formatDueDate(dateStr: string | null): string {
   if (!dateStr) return "—";
-  const d = new Date(dateStr.split("T")[0] + "T12:00:00");
+  const d = parseLocalDate(dateStr);
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { parseLocalDate } from "@/lib/format";
 import {
   Plus,
   TrendingUp,
@@ -21,6 +22,7 @@ import TasksList from "../components/TasksList";
 import StaffList from "../components/StaffList";
 import Widget from "../components/Widget";
 import StatCard from "../components/StatCard";
+import { Skeleton, SkeletonList } from "../components/Skeleton";
 import BarChart from "../components/BarChart";
 import AddParticipantModal from "../components/AddParticipantModal";
 import { useDashboard, queryKeys } from "@/lib/api/hooks";
@@ -38,7 +40,7 @@ import type {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const parseDate = (s: string) => new Date(s + "T12:00:00");
+const parseDate = parseLocalDate;
 const shortDate = (s: string) => parseDate(s).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
 const STATUS_BADGE: Record<ParticipantStatus, { type: string; text: string }> = {
@@ -114,7 +116,7 @@ export default function DashboardPage() {
     if (prospective.length && items.length < 5) {
       items.push({
         severity: "info",
-        txt: `${prospective.length} prospective participant${prospective.length > 1 ? "s" : ""} awaiting follow-up`,
+        txt: `${prospective.length} prospective student${prospective.length > 1 ? "s" : ""} awaiting follow-up`,
         sub: "Assign a coordinator",
         act: "Assign",
         href: "/students",
@@ -227,7 +229,7 @@ export default function DashboardPage() {
     }));
   }, [roster]);
 
-  const dash = (v: React.ReactNode) => (loading ? "…" : v);
+  const dash = (v: React.ReactNode) => (loading ? <Skeleton w={48} h={22} style={{ marginTop: 2 }} /> : v);
 
   return (
     <div className="adm-main">
@@ -263,7 +265,7 @@ export default function DashboardPage() {
         {/* stat grid */}
         <div className="adm-statgrid">
           <StatCard
-            label="Active Participants"
+            label="Active Students"
             num={dash(activeCount)}
             delta={newThisMonth > 0 ? <><TrendingUp /> +{newThisMonth} this month</> : <><Users /> {participants.length} total</>}
             deltaClass={newThisMonth > 0 ? "up" : "muted"}
@@ -293,12 +295,12 @@ export default function DashboardPage() {
         {/* row 2: alerts + events */}
         <div className="adm-row2">
           <Widget id="alerts-heading" title="Alerts" icon={<AlertTriangle className="ico ico--warning" />} linkText="View all" linkHref="/students">
-            {loading ? <EmptyRow text="Loading…" /> : alertItems.length ? <AlertList items={alertItems} /> : <EmptyRow text="No open alerts" />}
+            {loading ? <SkeletonList rows={3} /> : alertItems.length ? <AlertList items={alertItems} /> : <EmptyRow text="No open alerts" />}
           </Widget>
 
           <Widget id="events-heading" title="Upcoming Events" icon={<Calendar className="ico ico--primary" />} linkText="Calendar" linkHref="/calendar">
             {loading ? (
-              <EmptyRow text="Loading…" />
+              <SkeletonList rows={3} />
             ) : upcoming.length ? (
               <div>
                 {upcoming.map((e) => (
@@ -325,8 +327,8 @@ export default function DashboardPage() {
 
         {/* row 3: pipeline + tasks + onboarding */}
         <div className="adm-row3">
-          <Widget id="pipeline-heading" title="Participant Pipeline" icon={<GitBranch className="ico ico--primary" />}>
-            {loading ? <EmptyRow text="Loading…" /> : pipeline.length ? <PipelineList items={pipeline} /> : <EmptyRow text="No participants yet" />}
+          <Widget id="pipeline-heading" title="Student Pipeline" icon={<GitBranch className="ico ico--primary" />}>
+            {loading ? <SkeletonList rows={3} /> : pipeline.length ? <PipelineList items={pipeline} /> : <EmptyRow text="No students yet" />}
           </Widget>
 
           <Widget id="tasks-heading" title="Open Tasks" icon={<CheckSquare className="ico ico--primary" />} linkText="View all" linkHref="/tasks">
@@ -334,7 +336,7 @@ export default function DashboardPage() {
               <div style={{ padding: "6px 0", fontSize: 12, color: "var(--danger)" }}>{taskError}</div>
             )}
             {loading ? (
-              <EmptyRow text="Loading…" />
+              <SkeletonList rows={3} />
             ) : taskItems.length ? (
               <TasksList items={taskItems} onComplete={completeTask} completingId={completingId} />
             ) : (
@@ -343,14 +345,14 @@ export default function DashboardPage() {
           </Widget>
 
           <Widget id="onboard-heading" title="Staff Onboarding" icon={<UserCheck className="ico ico--primary" />}>
-            {loading ? <EmptyRow text="Loading…" /> : staffItems.length ? <StaffList items={staffItems} /> : <EmptyRow text="No staff yet" />}
+            {loading ? <SkeletonList rows={3} /> : staffItems.length ? <StaffList items={staffItems} /> : <EmptyRow text="No staff yet" />}
           </Widget>
         </div>
 
         {/* attendance today by program */}
         <Widget id="attendance-heading" title="Attendance Today by Program" icon={<BarChart3 className="ico ico--primary" />} bodyClass="widget-body--padded">
           {loading ? (
-            <EmptyRow text="Loading…" />
+            <SkeletonList rows={3} />
           ) : chartColumns.length ? (
             <BarChart columns={chartColumns} />
           ) : (

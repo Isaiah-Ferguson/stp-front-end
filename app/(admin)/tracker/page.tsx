@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PenLine, Check, X } from "lucide-react";
 import { useMyPrograms, useParticipants, useObjectiveAreas } from "@/lib/api/hooks";
 import { progressApi } from "@/lib/api/progress";
+import { Skeleton } from "../components/Skeleton";
 import type {
   ProgramSummaryDto,
   ParticipantSummaryDto,
@@ -192,9 +193,21 @@ export default function WeeklyDataPage() {
 
         {/* Entry grid */}
         {loading ? (
-          <div style={{ padding: "24px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>Loading…</div>
+          <div style={{ border: "0.5px solid var(--border)", borderRadius: "var(--r-lg)", background: "var(--surface)", overflow: "hidden" }}>
+            {Array.from({ length: 5 }, (_, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderBottom: i < 4 ? "0.5px solid var(--border)" : "none" }}>
+                <Skeleton w={24} h={24} circle />
+                <Skeleton w={120 + ((i * 23) % 40)} h={11} />
+                <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                  <Skeleton w={56} h={24} r={4} />
+                  <Skeleton w={56} h={24} r={4} />
+                  <Skeleton w={56} h={24} r={4} />
+                </span>
+              </div>
+            ))}
+          </div>
         ) : participants.length === 0 ? (
-          <div style={{ padding: "24px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>No participants in this program.</div>
+          <div style={{ padding: "24px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>No students in this program.</div>
         ) : weekFocus.length === 0 ? (
           <div style={{ padding: "24px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>Set this week&apos;s focus skills above to start entering data.</div>
         ) : (
@@ -202,7 +215,7 @@ export default function WeeklyDataPage() {
             <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 480 }}>
               <thead>
                 <tr style={{ borderBottom: "0.5px solid var(--border)" }}>
-                  <th style={{ textAlign: "left", padding: "8px 12px", fontSize: "var(--fs-label)", textTransform: "uppercase", letterSpacing: "var(--ls-label)", color: "var(--fg-tertiary)", fontWeight: "var(--w-regular)" }}>Star</th>
+                  <th style={{ textAlign: "left", padding: "8px 12px", fontSize: "var(--fs-label)", textTransform: "uppercase", letterSpacing: "var(--ls-label)", color: "var(--fg-tertiary)", fontWeight: "var(--w-regular)" }}>Student</th>
                   {weekFocus.map((f) => (
                     <th key={f.subSkillId} style={{ padding: "8px 8px", fontSize: "var(--fs-meta)", color: "var(--fg-secondary)", fontWeight: "var(--w-regular)", textAlign: "center", minWidth: 84 }}>{f.subSkillName}</th>
                   ))}

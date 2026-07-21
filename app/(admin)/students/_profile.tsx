@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { parseLocalDate } from "@/lib/format";
 import {
   ArrowLeft,
   Pencil,
@@ -51,7 +52,7 @@ function toInitials(name: string): string {
 
 function fmtDate(s: string): string {
   if (!s) return "—";
-  return new Date(s + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  return parseLocalDate(s).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 }
 
 const inputStyle: React.CSSProperties = {
@@ -142,7 +143,7 @@ export default function ParticipantProfile({ id }: { id: string }) {
     } catch {
       setDeleting(false);
       setDeleteOpen(false);
-      setError("Could not delete this participant — try again.");
+      setError("Could not delete this student — try again.");
     }
   }
 
@@ -151,9 +152,7 @@ export default function ParticipantProfile({ id }: { id: string }) {
     return (
       <div className="adm-main">
         <div className="adm-content" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "50vh", color: "var(--fg-tertiary)" }}>
-          <Loader2 style={{ width: 22, height: 22, animation: "spin 1s linear infinite" }} />
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        </div>
+          <Loader2 style={{ width: 22, height: 22, animation: "spin 1s linear infinite" }} />        </div>
       </div>
     );
   }
@@ -163,9 +162,9 @@ export default function ParticipantProfile({ id }: { id: string }) {
       <div className="adm-main">
         <div className="adm-content" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "50vh", gap: 10, textAlign: "center" }}>
           <AlertCircle style={{ width: 26, height: 26, color: "var(--fg-tertiary)" }} />
-          <h2 style={{ fontSize: 16, fontWeight: 500, margin: 0 }}>Participant not found</h2>
-          <p style={{ fontSize: 13, color: "var(--fg-tertiary)" }}>This participant may have been removed.</p>
-          <Link href="/students" className="ss-btn"><ArrowLeft className="ss-btn-icon" />Back to participants</Link>
+          <h2 style={{ fontSize: 16, fontWeight: 500, margin: 0 }}>Student not found</h2>
+          <p style={{ fontSize: 13, color: "var(--fg-tertiary)" }}>This student may have been removed.</p>
+          <Link href="/students" className="ss-btn"><ArrowLeft className="ss-btn-icon" />Back to students</Link>
         </div>
       </div>
     );
@@ -185,13 +184,12 @@ export default function ParticipantProfile({ id }: { id: string }) {
 
   return (
     <>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       <div className="adm-main">
         <div className="adm-topbar">
           <div className="titles">
             <Link href="/students" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "var(--fg-tertiary)", textDecoration: "none", marginBottom: 2 }}>
-              <ArrowLeft style={{ width: 13, height: 13 }} />Participants
+              <ArrowLeft style={{ width: 13, height: 13 }} />Students
             </Link>
             <h1>{detail.fullName}</h1>
           </div>
@@ -246,7 +244,7 @@ export default function ParticipantProfile({ id }: { id: string }) {
           <div className="widget">
             <div className="widget-head">
               <UserIcon className="ico" style={{ color: "var(--primary)" }} />
-              <h3>Participant details</h3>
+              <h3>Student details</h3>
             </div>
             <div className="widget-body" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-4)" }}>
               {field(
@@ -362,7 +360,7 @@ export default function ParticipantProfile({ id }: { id: string }) {
                 <span style={{ display: "inline-flex", width: 32, height: 32, borderRadius: "50%", background: "var(--danger-fill, #fce8e8)", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <Trash2 style={{ width: 16, height: 16, color: "var(--danger)" }} />
                 </span>
-                <h3 style={{ fontSize: 15, fontWeight: 500, margin: 0 }}>Delete participant?</h3>
+                <h3 style={{ fontSize: 15, fontWeight: 500, margin: 0 }}>Delete student?</h3>
               </div>
               <p style={{ fontSize: 13, color: "var(--fg-secondary)", lineHeight: 1.5, margin: 0 }}>
                 <strong>{detail.fullName}</strong> will be permanently removed, along with their attendance records. This can&apos;t be undone.

@@ -85,7 +85,7 @@ export default function PlanningPage() {
   return (
     <div className="adm-main">
       <div className="adm-topbar">
-        <div className="titles"><h1>Per-Star Planning</h1></div>
+        <div className="titles"><h1>Per-Student Planning</h1></div>
         <div className="right" style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <input type="month" value={month} onChange={(e) => setMonth(e.target.value)}
             style={{ border: "0.5px solid var(--border-hover)", borderRadius: "var(--r-md)", padding: "6px 8px", fontSize: 12, color: "var(--fg)", background: "var(--surface)", outline: "none" }} />
@@ -95,7 +95,7 @@ export default function PlanningPage() {
       <div className="adm-content">
         <div className="info-note" style={{ marginBottom: "var(--space-3)" }}>
           <Target />
-          <span>Each Star&apos;s monthly priorities — their primary tier, the objective area &amp; sub-skill to focus on, a goal with a +1 growing edge, and how staff will support it. Changes save automatically.</span>
+          <span>Each student&apos;s monthly priorities — their primary tier, the objective area &amp; sub-skill to focus on, a goal with a +1 growing edge, and how staff will support it. Changes save automatically.</span>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: "var(--space-3)" }}>
@@ -117,7 +117,7 @@ export default function PlanningPage() {
         ) : loading ? (
           <div style={{ padding: "40px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>Loading…</div>
         ) : plans.length === 0 ? (
-          <div style={{ padding: "40px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>No participants.</div>
+          <div style={{ padding: "40px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>No students.</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
             {byProgram.map((prog) => (

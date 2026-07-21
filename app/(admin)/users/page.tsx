@@ -67,8 +67,6 @@ export default function UsersPage() {
 
   return (
     <>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-
       <div className="adm-main">
         <div className="adm-topbar">
           <div className="titles">

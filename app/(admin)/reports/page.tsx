@@ -17,6 +17,7 @@ import Widget from "../components/Widget";
 import StatCard from "../components/StatCard";
 import BarChart from "../components/BarChart";
 import StaffList from "../components/StaffList";
+import { Skeleton, SkeletonList } from "../components/Skeleton";
 import { useReports } from "@/lib/api/hooks";
 import LoadError from "@/app/components/LoadError";
 import { participantsApi } from "@/lib/api/participants";
@@ -40,7 +41,7 @@ export default function ReportsPage() {
   const loading = reportQ.isPending;
   const [exporting, setExporting] = useState(false);
 
-  const dash = (v: React.ReactNode) => (loading ? "…" : v);
+  const dash = (v: React.ReactNode) => (loading ? <Skeleton w={48} h={22} style={{ marginTop: 2 }} /> : v);
 
   const chartColumns = useMemo(
     () =>
@@ -84,7 +85,7 @@ export default function ReportsPage() {
         ["Program", "Enrolled", "Attendance %", "Sessions"],
         ...report.programs.map((p) => [p.name, p.enrolled, p.attendancePct, p.sessions]),
         [],
-        ["Total participants", report.totals.totalParticipants],
+        ["Total students", report.totals.totalParticipants],
         ["Active", report.totals.activeParticipants],
         ["Prospective", report.totals.prospective],
         ["Needs attention", report.totals.attention],
@@ -156,7 +157,7 @@ export default function ReportsPage() {
         {/* KPI grid */}
         <div className="adm-statgrid">
           <StatCard
-            label="Active Participants"
+            label="Active Students"
             num={dash(t?.activeParticipants ?? 0)}
             delta={<><Users />{t?.totalParticipants ?? 0} total · {t?.programs ?? 0} programs</>}
             deltaClass="muted"
@@ -164,7 +165,7 @@ export default function ReportsPage() {
           <StatCard
             label="Avg Attendance"
             num={dash(t ? `${t.avgAttendancePct}%` : "—")}
-            delta={<><TrendingUp />across all participants</>}
+            delta={<><TrendingUp />across all students</>}
             deltaClass="muted"
           />
           <StatCard
@@ -185,12 +186,12 @@ export default function ReportsPage() {
         {/* row 2: attendance-by-program + status breakdown */}
         <div className="adm-row2">
           <Widget id="att-prog-heading" title="Attendance by Program" icon={<BarChart3 className="ico ico--primary" />} bodyClass="widget-body--padded">
-            {loading ? <EmptyRow text="Loading…" /> : chartColumns.length ? <BarChart columns={chartColumns} /> : <EmptyRow text="No programs yet" />}
+            {loading ? <SkeletonList rows={3} /> : chartColumns.length ? <BarChart columns={chartColumns} /> : <EmptyRow text="No programs yet" />}
           </Widget>
 
-          <Widget id="status-heading" title="Participants by Status" icon={<GitBranch className="ico ico--primary" />} bodyClass="widget-body--padded">
+          <Widget id="status-heading" title="Students by Status" icon={<GitBranch className="ico ico--primary" />} bodyClass="widget-body--padded">
             {loading || !t ? (
-              <EmptyRow text="Loading…" />
+              <SkeletonList rows={3} />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: "4px 0" }}>
                 {STATUS_ROWS.map((row) => {
@@ -218,7 +219,7 @@ export default function ReportsPage() {
         {/* enrollment by program table */}
         <Widget id="enroll-heading" title="Enrollment by Program" icon={<Users className="ico ico--primary" />}>
           {loading ? (
-            <EmptyRow text="Loading…" />
+            <SkeletonList rows={3} />
           ) : report && report.programs.length ? (
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -262,7 +263,7 @@ export default function ReportsPage() {
         {/* staff onboarding */}
         <Widget id="onboard-heading" title="Staff Onboarding" icon={<GraduationCap className="ico ico--primary" />}>
           {loading ? (
-            <EmptyRow text="Loading…" />
+            <SkeletonList rows={3} />
           ) : staffItems.length ? (
             <>
               <div style={{ padding: "6px 16px 2px", fontSize: 12, color: "var(--fg-tertiary)" }}>

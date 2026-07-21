@@ -26,6 +26,7 @@ import {
   todayStr,
   prettyDate,
 } from "./_components";
+import EmptyState from "../components/EmptyState";
 
 export default function AttendancePage() {
   const { isAdmin } = useAuth();
@@ -213,8 +214,6 @@ export default function AttendancePage() {
 
   return (
     <>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-
       <div className="adm-main">
         <div className="adm-topbar">
           <div className="titles">
@@ -294,27 +293,17 @@ export default function AttendancePage() {
                   Loading sessions…
                 </div>
               ) : cardsError ? (
-                <div
-                  role="alert"
-                  style={{
-                    display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--space-3)",
-                    padding: "var(--space-8) var(--space-5)", textAlign: "center",
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 44, height: 44, borderRadius: "var(--r-md)", background: "var(--danger-fill, var(--bg-secondary))",
-                      color: "var(--danger, var(--fg-secondary))", display: "inline-flex", alignItems: "center", justifyContent: "center",
-                    }}
-                  >
-                    <AlertTriangle style={{ width: 22, height: 22 }} />
-                  </span>
-                  <h3 style={{ fontSize: 15, fontWeight: 500, color: "var(--fg)" }}>Couldn&apos;t load sessions</h3>
-                  <p className="ss-meta" style={{ maxWidth: 340 }}>{cardsError}</p>
-                  <button className="ss-btn ss-btn-primary" onClick={() => loadCards(date)}>
-                    Retry
-                  </button>
-                </div>
+                <EmptyState
+                  icon={AlertTriangle}
+                  tone="danger"
+                  title="Couldn't load sessions"
+                  description={cardsError}
+                  action={
+                    <button className="ss-btn ss-btn-primary" onClick={() => loadCards(date)}>
+                      Retry
+                    </button>
+                  }
+                />
               ) : (
                 <>
                   {cards.length > 0 ? (
@@ -330,25 +319,11 @@ export default function AttendancePage() {
                       ))}
                     </div>
                   ) : (
-                    <div
-                      style={{
-                        display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--space-3)",
-                        padding: "var(--space-8) var(--space-5)", textAlign: "center",
-                      }}
-                    >
-                      <span
-                        style={{
-                          width: 44, height: 44, borderRadius: "var(--r-md)", background: "var(--bg-secondary)",
-                          color: "var(--fg-secondary)", display: "inline-flex", alignItems: "center", justifyContent: "center",
-                        }}
-                      >
-                        <CalendarDays style={{ width: 22, height: 22 }} />
-                      </span>
-                      <h3 style={{ fontSize: 15, fontWeight: 500, color: "var(--fg)" }}>No sessions scheduled</h3>
-                      <p className="ss-meta" style={{ maxWidth: 340 }}>
-                        No programs meet on this day. Pick another date, or start an ad-hoc session below.
-                      </p>
-                    </div>
+                    <EmptyState
+                      icon={CalendarDays}
+                      title="No sessions scheduled"
+                      description="No programs meet on this day. Pick another date, or start an ad-hoc session below."
+                    />
                   )}
 
                   {/* ad-hoc */}

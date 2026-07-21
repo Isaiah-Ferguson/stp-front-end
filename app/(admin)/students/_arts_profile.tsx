@@ -6,7 +6,7 @@ import { participantsApi } from "@/lib/api/participants";
 import type { ParticipantArtsProfileDto, UpsertArtsProfileDto } from "@/lib/types/api";
 
 const FIELDS: { key: keyof UpsertArtsProfileDto; label: string; placeholder: string }[] = [
-  { key: "ippSummary", label: "Student IPP summary", placeholder: "Summary of the Star's IPP…" },
+  { key: "ippSummary", label: "Student IPP summary", placeholder: "Summary of the student's IPP…" },
   { key: "currentLevel", label: "Student current level", placeholder: "Narrative of present functioning — prompting needs, processing, communication…" },
   { key: "tsspArtsGoal", label: "Student TSSP arts goal", placeholder: "The measurable arts participation goal…" },
 ];

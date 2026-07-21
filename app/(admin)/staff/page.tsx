@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import { parseLocalDate } from "@/lib/format";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Download,
@@ -47,7 +48,7 @@ function toInitials(name: string): string {
 }
 
 function buildHireLabel(dateStr: string): string {
-  const d = dateStr ? new Date(dateStr + "T12:00:00") : new Date();
+  const d = dateStr ? parseLocalDate(dateStr) : new Date();
   const today = new Date();
   today.setHours(12, 0, 0, 0);
   const prefix = d > today ? "Start date" : "Hired";
@@ -55,14 +56,14 @@ function buildHireLabel(dateStr: string): string {
 }
 
 function isNewHire(dateStr: string): boolean {
-  const d = new Date(dateStr + "T12:00:00");
+  const d = parseLocalDate(dateStr);
   const now = new Date();
   return (now.getTime() - d.getTime()) < 60 * 24 * 60 * 60 * 1000;
 }
 
 function formatShort(dateStr: string | null): string {
   if (!dateStr) return "";
-  const d = new Date(dateStr + "T12:00:00");
+  const d = parseLocalDate(dateStr);
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 

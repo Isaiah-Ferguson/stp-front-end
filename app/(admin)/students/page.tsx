@@ -2,6 +2,10 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import { parseLocalDate } from "@/lib/format";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { Skeleton } from "../components/Skeleton";
+import BulkActionsBar from "../components/BulkActionsBar";
 import {
   UserPlus,
   Download,
@@ -65,7 +69,7 @@ type Student = {
 // ── DTO → local type ──────────────────────────────────────────────────────────
 
 function dtoToStudent(dto: ParticipantSummaryDto): Student {
-  const d = new Date(dto.startDate + "T12:00:00");
+  const d = parseLocalDate(dto.startDate);
   const startLabel = d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
   return {
     id: dto.id,
@@ -104,6 +108,7 @@ function exportCsv(rows: Student[]) {
 
 export default function StudentsPage() {
   // Cached + shared across pages via React Query (#34).
+  const { isAdmin } = useAuth();
   const participantsQ = useParticipants();
   const programsQ = usePrograms();
   const loading = participantsQ.isPending || programsQ.isPending;
@@ -133,6 +138,15 @@ export default function StudentsPage() {
   };
 
   const alertStudentCount = data.filter((d) => d.alerts.length > 0).length;
+
+  // Existing coordinators, for quick-pick when bulk-assigning.
+  const coordinators = useMemo(
+    () =>
+      Array.from(
+        new Set((participantsQ.data ?? []).map((p) => p.serviceCoordinator).filter((c): c is string => !!c && c !== "—"))
+      ).sort((a, b) => a.localeCompare(b)),
+    [participantsQ.data]
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -200,6 +214,19 @@ export default function StudentsPage() {
     ) : (
       <span className="caret" style={{ opacity: 0.35 }}><ChevronDown /></span>
     );
+
+  const ariaSort = (col: SortKey): "ascending" | "descending" | "none" =>
+    sortKey === col ? (sortDir === "asc" ? "ascending" : "descending") : "none";
+
+  // Sortable header: the label is a real <button> so it's reachable and
+  // operable by keyboard; aria-sort tells assistive tech the current order.
+  const sortableTh = (col: SortKey, label: string) => (
+    <th className="sortable" aria-sort={ariaSort(col)}>
+      <button type="button" className="th-sort" onClick={() => toggleSort(col)}>
+        {label} {sortCaret(col)}
+      </button>
+    </th>
+  );
 
   const filterSummary = [
     statusTab === "all" ? "All statuses" : STATUS_BADGE[statusTab].label,
@@ -322,6 +349,17 @@ export default function StudentsPage() {
           </div>
         </div>
 
+        {/* bulk actions — appear once rows are selected */}
+        {selected.size > 0 && (
+          <BulkActionsBar
+            ids={[...selected]}
+            programs={programs}
+            coordinators={coordinators}
+            isAdmin={isAdmin}
+            onClear={() => setSelected(new Set())}
+          />
+        )}
+
         {/* data table */}
         <div className="tbl-card">
           <div className="tbl-scroll">
@@ -336,28 +374,37 @@ export default function StudentsPage() {
                       onClick={toggleAllVisible}
                     />
                   </th>
-                  <th className="sortable" onClick={() => toggleSort("name")} style={{ cursor: "pointer" }}>
-                    Student {sortCaret("name")}
-                  </th>
+                  {sortableTh("name", "Student")}
                   <th>Program</th>
                   <th>Status</th>
                   <th>Alerts</th>
-                  <th className="sortable" onClick={() => toggleSort("att")} style={{ cursor: "pointer" }}>
-                    Attendance {sortCaret("att")}
-                  </th>
+                  {sortableTh("att", "Attendance")}
                   <th>Service Coord</th>
-                  <th className="sortable" onClick={() => toggleSort("start")} style={{ cursor: "pointer" }}>
-                    Started {sortCaret("start")}
-                  </th>
+                  {sortableTh("start", "Started")}
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr>
-                    <td colSpan={8} style={{ textAlign: "center", padding: "32px 0", color: "var(--fg-tertiary)", fontSize: 13 }}>
-                      Loading students…
-                    </td>
-                  </tr>
+                  Array.from({ length: rowsPerPage }, (_, i) => (
+                    <tr key={`sk-${i}`}>
+                      <td><Skeleton w={14} h={14} r={3} /></td>
+                      <td>
+                        <div className="cell-student">
+                          <Skeleton w={28} h={28} circle />
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            <Skeleton w={130} h={11} />
+                            <Skeleton w={54} h={9} />
+                          </div>
+                        </div>
+                      </td>
+                      <td><Skeleton w={90} h={11} /></td>
+                      <td><Skeleton w={72} h={18} r={10} /></td>
+                      <td><Skeleton w={16} h={11} /></td>
+                      <td><Skeleton w={80} h={11} /></td>
+                      <td><Skeleton w={70} h={11} /></td>
+                      <td><Skeleton w={60} h={11} /></td>
+                    </tr>
+                  ))
                 ) : participantsQ.isError ? (
                   <tr>
                     <td colSpan={8}>

@@ -292,7 +292,6 @@ export default function TrackerWidget({ participantId }: { participantId: string
           </>
         )}
       </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

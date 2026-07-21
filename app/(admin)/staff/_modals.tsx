@@ -53,7 +53,7 @@ export const DEFAULT_TEMPLATE: TemplateSection[] = [
     items: [
       { id: "t10", label: "Staff email account created" },
       { id: "t11", label: "Program schedule provided" },
-      { id: "t12", label: "Participant roster access granted" },
+      { id: "t12", label: "Student roster access granted" },
     ],
   },
 ];
