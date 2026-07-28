@@ -1,7 +1,6 @@
 import { api } from "./client";
 import type {
   AttendanceSessionDto,
-  AttendanceRosterEntryDto,
   AttendanceNoteDto,
   CreateAttendanceNoteDto,
   UpdateAttendanceDto,
@@ -22,7 +21,4 @@ export const attendanceApi = {
   getSession:    (sessionId: string)                      => api.get<AttendanceSessionDto>(`/api/attendance/session/${sessionId}`),
   updateRecord:  (recordId: string, dto: UpdateAttendanceDto) => api.put<void>(`/api/attendance/${recordId}`, dto),
   addNote:       (recordId: string, dto: CreateAttendanceNoteDto) => api.post<AttendanceNoteDto>(`/api/attendance/${recordId}/notes`, dto),
-
-  /** @deprecated Superseded by getScheduled + getProgramSession. */
-  getTodayRoster: ()                                      => api.get<AttendanceRosterEntryDto[]>("/api/attendance/today"),
 };
