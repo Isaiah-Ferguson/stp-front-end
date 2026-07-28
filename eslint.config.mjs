@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendored agent-skill scripts — gitignored third-party code, including a minified
+    // bundle. Linting them drowned the 30 real app-code findings under 264 of theirs.
+    ".agents/**",
+    ".claude/**",
+    ".impeccable/**",
   ]),
 ]);
 
