@@ -99,6 +99,17 @@ export default function ReportsPage() {
     );
   }
 
+  function exportStarAttendance() {
+    if (!report) return;
+    downloadCsv(
+      [
+        ["Name", "Program", "Status", "Present", "Absent", "Present rate %"],
+        ...report.starAttendance.map((s) => [s.name, s.programName, s.status, s.present, s.absent, s.presentRatePct]),
+      ],
+      `star-attendance-${stamp()}.csv`
+    );
+  }
+
   async function exportRoster() {
     setExporting(true);
     try {
@@ -257,6 +268,61 @@ export default function ReportsPage() {
             </div>
           ) : (
             <EmptyRow text="No programs yet" />
+          )}
+        </Widget>
+
+        {/* per-star attendance incl. absences */}
+        <Widget
+          id="star-att-heading"
+          title="Star Attendance & Absences"
+          icon={<CalendarCheck className="ico ico--primary" />}
+          action={
+            <button className="ss-btn" type="button" onClick={exportStarAttendance} disabled={!report}>
+              <Download className="ss-btn-icon" />CSV
+            </button>
+          }
+        >
+          {loading ? (
+            <SkeletonList rows={4} />
+          ) : report && report.starAttendance.length ? (
+            <div style={{ overflowX: "auto", maxHeight: 420, overflowY: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ borderBottom: "0.5px solid var(--border)" }}>
+                    <th style={th}>Star</th>
+                    <th style={th}>Program</th>
+                    <th style={{ ...th, textAlign: "center" }}>Present</th>
+                    <th style={{ ...th, textAlign: "center" }}>Absent</th>
+                    <th style={{ ...th, textAlign: "left", width: "32%" }}>Present rate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.starAttendance.map((s) => (
+                    <tr key={s.participantId} style={{ borderBottom: "0.5px solid var(--border)" }}>
+                      <td style={td}>{s.name}</td>
+                      <td style={td}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                          <span className={`ss-dot ${s.programSlug}`} />
+                          {s.programName}
+                        </span>
+                      </td>
+                      <td style={{ ...td, textAlign: "center", color: "var(--success-text)" }}>{s.present}</td>
+                      <td style={{ ...td, textAlign: "center", color: s.absent > 0 ? "var(--danger)" : "var(--fg-secondary)", fontWeight: s.absent > 0 ? 500 : 400 }}>{s.absent}</td>
+                      <td style={td}>
+                        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span className="ss-progress" style={{ flex: 1 }}>
+                            <span className={`ss-progress-fill ${s.programSlug}`} style={{ width: `${s.presentRatePct}%` }} />
+                          </span>
+                          <span style={{ fontSize: 12, color: "var(--fg-secondary)", minWidth: 34, textAlign: "right" }}>{s.presentRatePct}%</span>
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <EmptyRow text="No attendance recorded yet" />
           )}
         </Widget>
 

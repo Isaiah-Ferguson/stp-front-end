@@ -26,6 +26,7 @@ import { Skeleton, SkeletonList } from "../components/Skeleton";
 import BarChart from "../components/BarChart";
 import AddParticipantModal from "../components/AddParticipantModal";
 import { useDashboard, queryKeys } from "@/lib/api/hooks";
+import { nextPathwaysReportDue } from "@/lib/pathwaysReports";
 import { tasksApi } from "@/lib/api/tasks";
 import LoadError from "@/app/components/LoadError";
 import type {
@@ -126,6 +127,21 @@ export default function DashboardPage() {
           ? `${p.fullName} — authorization expired`
           : `${p.fullName} — authorization expires in ${days} day${days === 1 ? "" : "s"}`,
         sub: `${p.programName} · renew authorization`,
+        act: "Review",
+        href: `/students/${p.id}`,
+      });
+    }
+
+    // Pathways 6/12-month reports coming due within a month.
+    for (const p of participants) {
+      if (items.length >= 6) break;
+      if (p.status !== "Active" && p.status !== "Attention") continue;
+      const due = nextPathwaysReportDue(p.startDate, p.programSlug);
+      if (!due || due.daysUntil > 31) continue;
+      items.push({
+        severity: "warning",
+        txt: `${p.fullName} — ${due.label} due in ${due.daysUntil} day${due.daysUntil === 1 ? "" : "s"}`,
+        sub: `Pathways · due ${due.due}`,
         act: "Review",
         href: `/students/${p.id}`,
       });

@@ -436,6 +436,9 @@ export interface StaffSummaryDto {
   initials: string;
   role: StaffRole;
   startDate: string;
+  /** yyyy-MM-dd; non-null marks the member as former. */
+  endDate: string | null;
+  isFormer: boolean;
   onboardingProgressPct: number;
   programNames: string[];
 }
@@ -470,6 +473,9 @@ export interface UpdateStaffDto {
   initials?: string;
   role?: StaffRole;
   programIds?: Guid[];
+  endDate?: string;
+  /** True clears the end date, restoring the member to active. */
+  clearEndDate?: boolean;
 }
 
 // ── Attendance ────────────────────────────────────────────────────────────────
@@ -548,7 +554,13 @@ export interface SessionRosterDto {
   room: string | null;
   status: "open" | "submitted";
   submittedAt: string | null;
+  /** Total hours the session ran — recorded for Pathways reporting. */
+  hoursLogged: number | null;
   entries: AttendanceRosterEntryDto[];
+}
+
+export interface SetSessionHoursDto {
+  hours: number | null;
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
@@ -569,6 +581,19 @@ export interface ReportsDto {
   programs: ProgramReportDto[];
   staffOnboarding: StaffOnboardingReportDto[];
   attendance: AttendanceSummaryDto;
+  starAttendance: StarAttendanceReportDto[];
+}
+
+/** Per-star attendance tally — presents, absences, and rate across all marked records. */
+export interface StarAttendanceReportDto {
+  participantId: Guid;
+  name: string;
+  programName: string;
+  programSlug: string;
+  status: string;
+  present: number;
+  absent: number;
+  presentRatePct: number;
 }
 
 export interface ReportTotalsDto {
@@ -604,6 +629,40 @@ export interface AttendanceSummaryDto {
   absent: number;
   unmarked: number;
   presentRatePct: number;
+}
+
+// ── Volunteers ────────────────────────────────────────────────────────────────
+
+export interface VolunteerDto {
+  id: Guid;
+  fullName: string;
+  initials: string;
+  phone: string | null;
+  email: string | null;
+  programId: Guid;
+  programName: string;
+  programSlug: string;
+  notes: string | null;
+  isActive: boolean;
+  startDate: string;
+}
+
+export interface CreateVolunteerDto {
+  fullName: string;
+  programId: Guid;
+  phone?: string;
+  email?: string;
+  notes?: string;
+  startDate?: string;
+}
+
+export interface UpdateVolunteerDto {
+  fullName?: string;
+  programId?: Guid;
+  phone?: string;
+  email?: string;
+  notes?: string;
+  isActive?: boolean;
 }
 
 // ── Projects & Tasks ──────────────────────────────────────────────────────────

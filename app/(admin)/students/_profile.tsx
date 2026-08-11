@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { parseLocalDate } from "@/lib/format";
+import { nextPathwaysReportDue } from "@/lib/pathwaysReports";
 import {
   ArrowLeft,
   Pencil,
@@ -206,6 +207,7 @@ export default function ParticipantProfile({ id }: { id: string }) {
   const slug = detail.programSlug;
   const badge = STATUS_BADGE[detail.status];
   const BadgeIcon = badge.icon;
+  const reportDue = nextPathwaysReportDue(detail.startDate, slug);
 
   // ── View / edit fields ──────────────────────────────────────────────────────
   // Expiry within a month shows amber; past-due shows red — matches the client's
@@ -356,6 +358,20 @@ export default function ParticipantProfile({ id }: { id: string }) {
                   <GraduationCap style={{ width: 14, height: 14, color: "var(--fg-tertiary)" }} />{detail.attendancePct}%
                 </div>
               </div>
+
+              {reportDue && (
+                <div>
+                  <div className="ss-label" style={{ marginBottom: 6 }}>Next Pathways report</div>
+                  <div style={{ fontSize: 14, color: "var(--fg)", display: "flex", alignItems: "center", gap: 6 }}>
+                    <CalendarDays style={{ width: 14, height: 14, color: "var(--fg-tertiary)" }} />
+                    {reportDue.daysUntil <= 31 ? (
+                      <span className="ss-date-expiring"><AlertTriangle />{reportDue.label} · {fmtDate(reportDue.due)} · in {reportDue.daysUntil} day{reportDue.daysUntil === 1 ? "" : "s"}</span>
+                    ) : (
+                      <span>{reportDue.label} · {fmtDate(reportDue.due)}</span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

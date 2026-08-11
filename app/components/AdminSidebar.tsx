@@ -27,6 +27,7 @@ import {
   Settings,
   LogOut,
   UserCog,
+  HeartHandshake,
   ChevronDown,
   type LucideIcon,
 } from "lucide-react";
@@ -52,6 +53,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/students", label: "Stars", icon: Users },
+      { href: "/volunteers", label: "Volunteers", icon: HeartHandshake },
       { href: "/attendance", label: "Attendance", icon: CalendarCheck },
       { href: "/calendar", label: "Calendar", icon: Calendar },
     ],

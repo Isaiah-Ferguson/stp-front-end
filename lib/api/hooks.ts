@@ -15,6 +15,7 @@ import { reportsApi } from "./reports";
 import { calendarApi } from "./calendar";
 import { scriptsApi } from "./scripts";
 import { taxonomyApi } from "./taxonomy";
+import { volunteersApi } from "./volunteers";
 
 export const queryKeys = {
   programs: ["programs"] as const,
@@ -30,6 +31,7 @@ export const queryKeys = {
   scripts: ["scripts"] as const,
   objectiveAreas: ["taxonomy", "objective-areas"] as const,
   subSkills: ["taxonomy", "sub-skills"] as const,
+  volunteers: ["volunteers"] as const,
 };
 
 export const usePrograms = () =>
@@ -43,6 +45,9 @@ export const useParticipants = () =>
 
 export const useStaff = () =>
   useQuery({ queryKey: queryKeys.staff, queryFn: () => staffApi.getAll() });
+
+export const useVolunteers = () =>
+  useQuery({ queryKey: queryKeys.volunteers, queryFn: () => volunteersApi.getAll() });
 
 export const useChecklistTemplate = () =>
   useQuery({ queryKey: queryKeys.checklistTemplate, queryFn: () => staffApi.getChecklistTemplate(), staleTime: 60_000 });

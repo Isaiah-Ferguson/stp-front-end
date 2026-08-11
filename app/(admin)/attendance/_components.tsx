@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { parseLocalDate } from "@/lib/format";
+import { attendanceApi } from "@/lib/api/attendance";
 import {
   Users,
   UserX,
@@ -298,6 +300,27 @@ export function RosterView({
 }) {
   const pct = (n: number) => (total ? `${Math.round((n / total) * 100)}%` : "0%");
 
+  // Pathways sessions record total hours (client rule) — saved on blur, in-place.
+  const [hours, setHours] = useState<string>(selected.hoursLogged != null ? String(selected.hoursLogged) : "");
+  const [hoursState, setHoursState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  useEffect(() => {
+    setHours(selected.hoursLogged != null ? String(selected.hoursLogged) : "");
+    setHoursState("idle");
+  }, [selected.sessionId, selected.hoursLogged]);
+
+  async function saveHours() {
+    const parsed = hours.trim() === "" ? null : Number(hours);
+    if (parsed !== null && (Number.isNaN(parsed) || parsed < 0 || parsed > 24)) { setHoursState("error"); return; }
+    if (parsed === (selected.hoursLogged ?? null)) return;
+    setHoursState("saving");
+    try {
+      await attendanceApi.setSessionHours(selected.sessionId, parsed);
+      setHoursState("saved");
+    } catch {
+      setHoursState("error");
+    }
+  }
+
   return (
     <>
       <button
@@ -334,6 +357,31 @@ export function RosterView({
               {selected.room && (
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                   <MapPin style={{ width: 12, height: 12 }} />{selected.room}
+                </span>
+              )}
+              {selected.programSlug === "pathways" && (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                  <Clock style={{ width: 12, height: 12 }} />
+                  Hours
+                  <input
+                    type="number"
+                    min={0}
+                    max={24}
+                    step={0.25}
+                    value={hours}
+                    disabled={locked}
+                    placeholder="e.g. 6"
+                    onChange={(e) => { setHours(e.target.value); setHoursState("idle"); }}
+                    onBlur={saveHours}
+                    style={{
+                      width: 64, padding: "2px 6px", fontSize: 12, color: "var(--fg)",
+                      border: "0.5px solid var(--border-hover)", borderRadius: "var(--r-sm)",
+                      background: "var(--surface)", outline: "none",
+                    }}
+                  />
+                  {hoursState === "saving" && <span style={{ color: "var(--fg-tertiary)" }}>Saving…</span>}
+                  {hoursState === "saved" && <span style={{ color: "var(--success-text)" }}>Saved</span>}
+                  {hoursState === "error" && <span style={{ color: "var(--danger)" }}>0–24 only</span>}
                 </span>
               )}
             </div>

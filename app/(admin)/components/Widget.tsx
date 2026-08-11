@@ -7,6 +7,7 @@ export default function Widget({
   icon,
   linkText,
   linkHref,
+  action,
   children,
   bodyClass,
 }: {
@@ -15,6 +16,8 @@ export default function Widget({
   icon?: React.ReactNode;
   linkText?: string;
   linkHref?: string;
+  /** Optional control (e.g. a button) rendered at the right edge of the head. */
+  action?: React.ReactNode;
   children: React.ReactNode;
   bodyClass?: string;
 }) {
@@ -28,6 +31,7 @@ export default function Widget({
             {linkText}
           </Link>
         ) : null}
+        {action ? <div style={{ marginLeft: "auto" }}>{action}</div> : null}
       </div>
       <div className={`widget-body ${bodyClass ?? ""}`.trim()}>{children}</div>
     </section>

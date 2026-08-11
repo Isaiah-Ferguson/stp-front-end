@@ -150,6 +150,9 @@ function StaffPageInner() {
   const [templateOpen, setTemplateOpen] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [filter, setFilter] = useState<StaffFilter>("all");
+  // Active vs former staff — former members keep their checklist history.
+  const [view, setView] = useState<"active" | "former">("active");
+  const [statusSavingId, setStatusSavingId] = useState<string | null>(null);
   // Item ids with an in-flight toggle request, so a double-click can't race.
   const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
 
@@ -197,8 +200,8 @@ function StaffPageInner() {
   function handleExport() {
     const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
     const rows = [
-      ["Name", "Role", "Programs", "Start date", "Onboarding %"],
-      ...staffList.map((s) => [s.fullName, s.role, s.programNames.join("; "), s.startDate, String(s.onboardingProgressPct)]),
+      ["Name", "Role", "Programs", "Start date", "End date", "Status", "Onboarding %"],
+      ...staffList.map((s) => [s.fullName, s.role, s.programNames.join("; "), s.startDate, s.endDate ?? "", s.isFormer ? "Former" : "Active", String(s.onboardingProgressPct)]),
     ];
     const blob = new Blob([rows.map((r) => r.map(esc).join(",")).join("\n")], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -234,11 +237,42 @@ function StaffPageInner() {
     closeModal();
   }
 
-  // computed compliance stats from real data
-  const complete = staffList.filter((s) => s.onboardingProgressPct === 100).length;
-  const inProgress = staffList.filter((s) => s.onboardingProgressPct > 0 && s.onboardingProgressPct < 100).length;
-  const compPct = staffList.length > 0 ? Math.round((complete / staffList.length) * 100) : 0;
-  const inProgPct = staffList.length > 0 ? Math.round((inProgress / staffList.length) * 100) : 0;
+  async function handleSetFormer(s: StaffSummaryDto, makeFormer: boolean) {
+    setStatusSavingId(s.id);
+    setSaveError(null);
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const updated = await staffApi.update(s.id, makeFormer ? { endDate: today } : { clearEndDate: true });
+      setDetailCache((prev) => ({ ...prev, [s.id]: updated }));
+      queryClient.invalidateQueries({ queryKey: queryKeys.staff, exact: true });
+    } catch (e) {
+      setSaveError(e instanceof ApiError && e.detail ? e.detail : "Couldn't update the staff member's status — try again.");
+    } finally {
+      setStatusSavingId(null);
+    }
+  }
+
+  const activeStaff = staffList.filter((s) => !s.isFormer);
+  const formerStaff = staffList.filter((s) => s.isFormer);
+  const viewList = view === "active" ? activeStaff : formerStaff;
+
+  // Year-group view (client request): rows grouped by start year, newest year first.
+  const visibleRows = viewList.filter((s) => matchesFilter(s, filter));
+  const yearGroups = [...visibleRows
+    .reduce((map, s) => {
+      const year = parseLocalDate(s.startDate).getFullYear();
+      if (!map.has(year)) map.set(year, []);
+      map.get(year)!.push(s);
+      return map;
+    }, new Map<number, StaffSummaryDto[]>())
+    .entries()]
+    .sort((a, b) => b[0] - a[0]);
+
+  // computed compliance stats from real data (active staff only)
+  const complete = activeStaff.filter((s) => s.onboardingProgressPct === 100).length;
+  const inProgress = activeStaff.filter((s) => s.onboardingProgressPct > 0 && s.onboardingProgressPct < 100).length;
+  const compPct = activeStaff.length > 0 ? Math.round((complete / activeStaff.length) * 100) : 0;
+  const inProgPct = activeStaff.length > 0 ? Math.round((inProgress / activeStaff.length) * 100) : 0;
 
   return (
     <div className="adm-main">
@@ -258,13 +292,25 @@ function StaffPageInner() {
 
       <div className="adm-content">
         <div className="board-stats">
-          <div className="board-stat"><span className="num">{staffList.length}</span><span className="label">Active Staff</span></div>
+          <div className="board-stat"><span className="num">{activeStaff.length}</span><span className="label">Active Staff</span></div>
           <div className="board-stat"><span className="num green">{complete}</span><span className="label">Fully Complete</span></div>
           <div className="board-stat"><span className="num amber">{inProgress}</span><span className="label">In Progress</span></div>
-          <div className="board-stat"><span className="num red">{staffList.filter(s => s.onboardingProgressPct === 0 && isNewHire(s.startDate)).length}</span><span className="label">Just Started</span></div>
+          <div className="board-stat"><span className="num">{formerStaff.length}</span><span className="label">Former</span></div>
         </div>
 
         <div className="row tight" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          {([["active", `Active (${activeStaff.length})`], ["former", `Former (${formerStaff.length})`]] as ["active" | "former", string][]).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              className={`ss-chip${view === key ? " is-active" : ""}`}
+              style={{ cursor: "pointer" }}
+              onClick={() => setView(key)}
+            >
+              {label}
+            </button>
+          ))}
+          <span style={{ width: 1, height: 22, background: "var(--border-strong)", margin: "0 4px" }} />
           {([["all", "All staff"], ["complete", "Complete"], ["inprogress", "In progress"], ["new", "New hires"]] as [StaffFilter, string][]).map(([key, label]) => (
             <button
               key={key}
@@ -318,11 +364,16 @@ function StaffPageInner() {
               <div style={{ padding: "40px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>
                 No staff members yet — add one to get started.
               </div>
-            ) : staffList.filter((s) => matchesFilter(s, filter)).length === 0 ? (
+            ) : visibleRows.length === 0 ? (
               <div style={{ padding: "40px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>
-                No staff members match this filter.
+                {view === "former" ? "No former staff members." : "No staff members match this filter."}
               </div>
-            ) : staffList.filter((s) => matchesFilter(s, filter)).map((s) => {
+            ) : yearGroups.map(([year, rows]) => (
+              <div key={year}>
+                <div className="ss-label" style={{ color: "var(--fg-tertiary)", margin: "var(--space-3) 0 var(--space-2)" }}>
+                  {year} · {rows.length} staff member{rows.length === 1 ? "" : "s"}
+                </div>
+                {rows.map((s) => {
               const isExpanded = expanded === s.fullName;
               const pct = s.onboardingProgressPct;
               const barCls = progressBarCls(pct);
@@ -331,7 +382,9 @@ function StaffPageInner() {
               const progLabel = s.programNames.length > 0 ? s.programNames.join(", ") : "No programs";
               const detail = detailCache[s.id];
 
-              const badgeEl = pct === 100 ? (
+              const badgeEl = s.isFormer ? (
+                <span className="ss-badge is-former">Former{s.endDate ? ` · ${formatShort(s.endDate)}` : ""}</span>
+              ) : pct === 100 ? (
                 <span className="ss-badge is-active"><CheckCircle2 />Complete</span>
               ) : pct === 0 ? (
                 <span className="ss-badge is-attention"><CircleDot />Just started</span>
@@ -400,11 +453,24 @@ function StaffPageInner() {
                           Loading checklist…
                         </div>
                       )}
+                      <div style={{ padding: "10px 16px", borderTop: "0.5px solid var(--border)", display: "flex", justifyContent: "flex-end" }}>
+                        <button
+                          className="ss-btn"
+                          type="button"
+                          disabled={statusSavingId === s.id}
+                          onClick={() => handleSetFormer(s, !s.isFormer)}
+                          style={s.isFormer ? undefined : { color: "var(--danger)" }}
+                        >
+                          {statusSavingId === s.id ? "Saving…" : s.isFormer ? "Restore to active" : "Mark as former"}
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
               );
-            })}
+                })}
+              </div>
+            ))}
 
             <button className="create-proj" type="button" onClick={openModal}>
               <UserPlus />Add new staff member
@@ -415,7 +481,7 @@ function StaffPageInner() {
           <div className="staff-side">
             <div className="section">
               <div className="sec-head"><h3>Renewals &amp; Alerts</h3></div>
-              {staffList.filter((s) => s.onboardingProgressPct < 100).slice(0, 4).map((s) => (
+              {activeStaff.filter((s) => s.onboardingProgressPct < 100).slice(0, 4).map((s) => (
                 <div className="alert-row" key={s.id}>
                   <span className={`dot ${s.onboardingProgressPct === 0 ? "red" : "amber"}`} />
                   <div className="body">
@@ -424,7 +490,7 @@ function StaffPageInner() {
                   </div>
                 </div>
               ))}
-              {staffList.filter((s) => s.onboardingProgressPct < 100).length === 0 && (
+              {activeStaff.filter((s) => s.onboardingProgressPct < 100).length === 0 && (
                 <div style={{ fontSize: 13, color: "var(--fg-tertiary)", padding: "8px 0" }}>All staff fully onboarded</div>
               )}
             </div>
