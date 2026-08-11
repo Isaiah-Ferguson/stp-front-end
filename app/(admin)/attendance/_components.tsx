@@ -387,7 +387,7 @@ export function RosterView({
             <Search style={{ width: 14, height: 14, color: "var(--fg-tertiary)" }} />
             <input
               type="text"
-              placeholder="Search students…"
+              placeholder="Search stars…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               style={{ border: "none", outline: "none", fontSize: 13, background: "transparent", width: 150 }}
@@ -399,7 +399,7 @@ export function RosterView({
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ borderBottom: "0.5px solid var(--border)" }}>
-                <th style={th}>Student</th>
+                <th style={th}>Star</th>
                 <th style={{ ...th, textAlign: "center" }}>Status</th>
                 <th style={{ ...th, textAlign: "center" }}>Note</th>
               </tr>
@@ -409,7 +409,7 @@ export function RosterView({
                 <tr><td colSpan={3} style={{ textAlign: "center", padding: "32px 16px", color: "var(--fg-tertiary)", fontSize: 13 }}>Loading roster…</td></tr>
               ) : visibleEntries.length === 0 ? (
                 <tr><td colSpan={3} style={{ textAlign: "center", padding: "32px 16px", color: "var(--fg-tertiary)", fontSize: 13 }}>
-                  {total === 0 ? "No active students in this program." : "No students match this filter."}
+                  {total === 0 ? "No active stars in this program." : "No stars match this filter."}
                 </td></tr>
               ) : visibleEntries.map((r) => (
                 <tr key={r.recordId} style={{ borderBottom: "0.5px solid var(--border)" }}>

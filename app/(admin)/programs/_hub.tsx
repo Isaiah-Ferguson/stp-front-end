@@ -165,7 +165,7 @@ export default function ProgramHub({ slug }: { slug: ProgramSlug }) {
         <div className="right">
           <button className="ss-btn ss-btn-primary" type="button" disabled={!detail} onClick={() => setAddOpen(true)}>
             <UserPlus className="ss-btn-icon" />
-            Enroll student
+            Enroll star
           </button>
         </div>
       </div>
@@ -204,12 +204,12 @@ export default function ProgramHub({ slug }: { slug: ProgramSlug }) {
           </div>
         </div>
 
-        {/* row 2: students + this week */}
+        {/* row 2: stars + this week */}
         <div className="adm-row2">
           <div className="widget">
             <div className="widget-head">
               <Users className="ico" style={{ color: colorVar }} />
-              <h3>Students</h3>
+              <h3>Stars</h3>
               <Link className="link" href="/students">View all</Link>
             </div>
             <div className="widget-body">

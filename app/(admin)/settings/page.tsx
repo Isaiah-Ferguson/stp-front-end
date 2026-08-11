@@ -107,7 +107,7 @@ export default function SettingsPage() {
         <div className="board-stats">
           <div className="board-stat"><span className="num">{stat(programs.length)}</span><span className="label">Programs</span></div>
           <div className="board-stat"><span className="num">{stat(lists?.sites.length)}</span><span className="label">Sites</span></div>
-          <div className="board-stat"><span className="num">{stat(lists?.starGroups.length)}</span><span className="label">Student Groups</span></div>
+          <div className="board-stat"><span className="num">{stat(lists?.starGroups.length)}</span><span className="label">Star Groups</span></div>
           <div className="board-stat"><span className="num">{stat(lists?.objectiveAreas.length)}</span><span className="label">Objective Areas</span></div>
         </div>
 
@@ -138,7 +138,7 @@ export default function SettingsPage() {
                   )) : <span className="ss-meta" style={{ color: "var(--fg-tertiary)" }}>None yet</span>}
                 </ChipRow>
 
-                <ChipRow icon={<Users style={{ width: 12, height: 12 }} />} label="Student Groups">
+                <ChipRow icon={<Users style={{ width: 12, height: 12 }} />} label="Star Groups">
                   {lists?.starGroups.length ? lists.starGroups.map((g) => (
                     <span key={g.id} className="ss-chip ss-chip--static">{g.name}</span>
                   )) : <span className="ss-meta" style={{ color: "var(--fg-tertiary)" }}>None yet</span>}

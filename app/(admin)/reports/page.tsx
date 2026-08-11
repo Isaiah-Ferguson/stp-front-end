@@ -85,7 +85,7 @@ export default function ReportsPage() {
         ["Program", "Enrolled", "Attendance %", "Sessions"],
         ...report.programs.map((p) => [p.name, p.enrolled, p.attendancePct, p.sessions]),
         [],
-        ["Total students", report.totals.totalParticipants],
+        ["Total stars", report.totals.totalParticipants],
         ["Active", report.totals.activeParticipants],
         ["Prospective", report.totals.prospective],
         ["Needs attention", report.totals.attention],
@@ -157,7 +157,7 @@ export default function ReportsPage() {
         {/* KPI grid */}
         <div className="adm-statgrid">
           <StatCard
-            label="Active Students"
+            label="Active Stars"
             num={dash(t?.activeParticipants ?? 0)}
             delta={<><Users />{t?.totalParticipants ?? 0} total · {t?.programs ?? 0} programs</>}
             deltaClass="muted"
@@ -165,7 +165,7 @@ export default function ReportsPage() {
           <StatCard
             label="Avg Attendance"
             num={dash(t ? `${t.avgAttendancePct}%` : "—")}
-            delta={<><TrendingUp />across all students</>}
+            delta={<><TrendingUp />across all stars</>}
             deltaClass="muted"
           />
           <StatCard
@@ -189,7 +189,7 @@ export default function ReportsPage() {
             {loading ? <SkeletonList rows={3} /> : chartColumns.length ? <BarChart columns={chartColumns} /> : <EmptyRow text="No programs yet" />}
           </Widget>
 
-          <Widget id="status-heading" title="Students by Status" icon={<GitBranch className="ico ico--primary" />} bodyClass="widget-body--padded">
+          <Widget id="status-heading" title="Stars by Status" icon={<GitBranch className="ico ico--primary" />} bodyClass="widget-body--padded">
             {loading || !t ? (
               <SkeletonList rows={3} />
             ) : (

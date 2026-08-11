@@ -114,7 +114,7 @@ export default function BulkActionsBar({
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const n = ids.length;
-  const noun = `${n} student${n === 1 ? "" : "s"}`;
+  const noun = `${n} star${n === 1 ? "" : "s"}`;
 
   /** Run `fn` for every selected id; refresh caches; report partial failures. */
   async function run(fn: (id: string) => Promise<unknown>): Promise<boolean> {

@@ -4,7 +4,7 @@ export type Guid = string;
 
 // ── Enums (mirror backend) ────────────────────────────────────────────────────
 
-export type ParticipantStatus = "Active" | "Prospective" | "Attention" | "Former";
+export type ParticipantStatus = "Active" | "Prospective" | "Attention" | "Former" | "AuthPending";
 export type StaffRole = "Teacher" | "Coordinator" | "Admin";
 export type AttendanceStatus = "Present" | "Absent" | "Unmarked";
 export type TaskStatus = "Upcoming" | "InProgress" | "Done" | "Overdue" | "Blocked";
@@ -149,6 +149,14 @@ export interface ParticipantSummaryDto {
   hasDocAlerts: boolean;
   birthYear: number | null;
   serviceCoordinator: string | null;
+  guardianName: string | null;
+  guardianPhone: string | null;
+  guardianEmail: string | null;
+  referralSource: string | null;
+  tShirtSize: string | null;
+  intakeNotes: string | null;
+  /** yyyy-MM-dd, null when not set. */
+  authorizationExpiry: string | null;
 }
 
 export interface ParticipantDetailDto extends ParticipantSummaryDto {
@@ -393,6 +401,13 @@ export interface CreateParticipantDto {
   birthYear?: number;
   serviceCoordinator?: string;
   startDate?: string;
+  guardianName?: string;
+  guardianPhone?: string;
+  guardianEmail?: string;
+  referralSource?: string;
+  tShirtSize?: string;
+  intakeNotes?: string;
+  authorizationExpiry?: string;
 }
 
 export interface UpdateParticipantDto {
@@ -402,6 +417,15 @@ export interface UpdateParticipantDto {
   status?: ParticipantStatus;
   birthYear?: number;
   serviceCoordinator?: string;
+  guardianName?: string;
+  guardianPhone?: string;
+  guardianEmail?: string;
+  referralSource?: string;
+  tShirtSize?: string;
+  intakeNotes?: string;
+  authorizationExpiry?: string;
+  /** True clears the stored expiry (null alone means "unchanged"). */
+  clearAuthorizationExpiry?: boolean;
 }
 
 // ── Staff ─────────────────────────────────────────────────────────────────────
@@ -805,6 +829,9 @@ export interface GameSummaryDto {
   primaryObjectiveAreaName: string;
   primaryObjectiveAreaColorHex: string;
   whenToUse: string | null;
+  location: string | null;
+  programId: Guid | null;
+  programName: string | null;
   subGoals: GameSubGoalDto[];
 }
 
@@ -819,6 +846,7 @@ export interface GameFilter {
   subSkillId?: Guid;
   category?: GameCategory;
   q?: string;
+  programId?: Guid;
 }
 
 export interface CreateGameSubGoalDto {
@@ -837,6 +865,8 @@ export interface CreateGameDto {
   description?: string | null;
   bestForVariations?: string | null;
   whenToUse?: string | null;
+  location?: string | null;
+  programId?: Guid | null;
   subGoals: CreateGameSubGoalDto[];
 }
 

@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Search, X, Sparkles, Target, Plus, Pencil } from "lucide-react";
+import { Search, X, Sparkles, Target, Plus, Pencil, MapPin } from "lucide-react";
 import { gamesApi } from "@/lib/api/games";
-import { useObjectiveAreas } from "@/lib/api/hooks";
+import { useObjectiveAreas, usePrograms } from "@/lib/api/hooks";
 import GameEditorModal from "./_editor";
 import type {
   GameSummaryDto,
   GameDetailDto,
   ObjectiveAreaDto,
+  ProgramSummaryDto,
   GameCategory,
 } from "@/lib/types/api";
 
@@ -40,6 +41,7 @@ function tierList(tiers: string): string[] {
 export default function GamesLibraryPage() {
   // Cached + shared via React Query (#34).
   const areas: ObjectiveAreaDto[] = useObjectiveAreas().data ?? [];
+  const programs: ProgramSummaryDto[] = usePrograms().data ?? [];
   const [games, setGames] = useState<GameSummaryDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -47,6 +49,7 @@ export default function GamesLibraryPage() {
   const [areaId, setAreaId] = useState<string | null>(null);
   const [tier, setTier] = useState<TierChoice | null>(null);
   const [category, setCategory] = useState<GameCategory | null>(null);
+  const [programId, setProgramId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
 
@@ -74,11 +77,12 @@ export default function GamesLibraryPage() {
         objectiveAreaId: areaId ?? undefined,
         category: category ?? undefined,
         q: debouncedQuery || undefined,
+        programId: programId ?? undefined,
       })
       .then((g) => { setGames(g); setError(false); })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [areaId, tier, category, debouncedQuery, reload]);
+  }, [areaId, tier, category, programId, debouncedQuery, reload]);
 
   async function openGame(game: GameSummaryDto) {
     setSelected(game);
@@ -97,24 +101,24 @@ export default function GamesLibraryPage() {
     () => Object.fromEntries(areas.map((a) => [a.id, a])),
     [areas]
   );
-  const activeFilters = [areaId, tier, category, debouncedQuery].filter(Boolean).length;
+  const activeFilters = [areaId, tier, category, programId, debouncedQuery].filter(Boolean).length;
 
   function clearFilters() {
-    setAreaId(null); setTier(null); setCategory(null); setQuery("");
+    setAreaId(null); setTier(null); setCategory(null); setProgramId(null); setQuery("");
   }
 
   return (
     <div className="adm-main">
       <div className="adm-topbar">
         <div className="titles">
-          <h1>Games Library</h1>
+          <h1>Curriculum Resources</h1>
         </div>
         <div className="right" style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
             <Search style={{ width: 14, height: 14, position: "absolute", left: 10, color: "var(--fg-tertiary)" }} />
             <input
               type="text"
-              placeholder="Search games…"
+              placeholder="Search activities…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               style={{
@@ -125,7 +129,7 @@ export default function GamesLibraryPage() {
             />
           </div>
           <button className="ss-btn ss-btn-primary" type="button" onClick={() => { setEditorGame(null); setEditorOpen(true); }}>
-            <Plus className="ss-btn-icon" />Add game
+            <Plus className="ss-btn-icon" />Add activity
           </button>
         </div>
       </div>
@@ -180,6 +184,14 @@ export default function GamesLibraryPage() {
             {CATEGORIES.map((c) => (
               <button key={c.value} type="button" className={`ss-chip${category === c.value ? " is-active" : ""}`} style={{ cursor: "pointer" }} onClick={() => setCategory(category === c.value ? null : c.value)}>{c.label}</button>
             ))}
+            <span style={{ width: 1, height: 20, background: "var(--border-strong)", margin: "0 6px" }} />
+            <span className="ss-label" style={{ color: "var(--fg-tertiary)", marginRight: 2 }}>Program</span>
+            <button type="button" className={`ss-chip${programId === null ? " is-active" : ""}`} style={{ cursor: "pointer" }} onClick={() => setProgramId(null)}>All</button>
+            {programs.map((p) => (
+              <button key={p.id} type="button" className={`ss-chip${programId === p.id ? ` is-active ${p.slug}` : ""}`} style={{ cursor: "pointer" }} onClick={() => setProgramId(programId === p.id ? null : p.id)}>
+                <span className={`ss-dot ${p.slug}`} />{p.name}
+              </button>
+            ))}
             {activeFilters > 0 && (
               <button type="button" onClick={clearFilters} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--primary)", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 3, marginLeft: 4 }}>
                 <X style={{ width: 12, height: 12 }} />Clear
@@ -190,16 +202,16 @@ export default function GamesLibraryPage() {
 
         {/* Results */}
         <div style={{ margin: "var(--space-3) 0", fontSize: "var(--fs-meta)", color: "var(--fg-tertiary)" }}>
-          {loading ? "Loading…" : `${games.length} game${games.length !== 1 ? "s" : ""}`}
+          {loading ? "Loading…" : `${games.length} activit${games.length !== 1 ? "ies" : "y"}`}
         </div>
 
         {error ? (
           <div style={{ padding: "40px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>
-            Couldn&apos;t load games. Check that the API is running and try again.
+            Couldn&apos;t load activities. Check that the API is running and try again.
           </div>
         ) : !loading && games.length === 0 ? (
           <div style={{ padding: "40px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>
-            No games match these filters. <button type="button" onClick={clearFilters} style={{ background: "none", border: "none", color: "var(--primary)", cursor: "pointer", fontSize: 13 }}>Clear filters</button>
+            No activities match these filters. <button type="button" onClick={clearFilters} style={{ background: "none", border: "none", color: "var(--primary)", cursor: "pointer", fontSize: 13 }}>Clear filters</button>
           </div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(290px, 1fr))", gap: "var(--space-4)" }}>
@@ -228,6 +240,12 @@ export default function GamesLibraryPage() {
                       {g.primaryObjectiveAreaName}
                     </span>
                     {g.categoryLabel && <span style={{ fontSize: "var(--fs-meta)", color: "var(--fg-tertiary)" }}>· {g.categoryLabel}</span>}
+                    {g.programName && <span style={{ fontSize: "var(--fs-meta)", color: "var(--fg-tertiary)" }}>· {g.programName}</span>}
+                    {g.location && (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: "var(--fs-meta)", color: "var(--fg-tertiary)" }}>
+                        · <MapPin style={{ width: 11, height: 11 }} />{g.location}
+                      </span>
+                    )}
                   </div>
 
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
@@ -263,11 +281,17 @@ export default function GamesLibraryPage() {
                   </span>
                   {selected.categoryLabel && <span>· {selected.categoryLabel}</span>}
                   <span>· {selected.source === "Suggested" ? "Suggested addition" : "TSSP"}</span>
+                  {selected.programName && <span>· {selected.programName}</span>}
+                  {selected.location && (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                      · <MapPin style={{ width: 11, height: 11 }} />{selected.location}
+                    </span>
+                  )}
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
                 {detail && (
-                  <button type="button" onClick={() => { setEditorGame(detail); setEditorOpen(true); }} title="Edit game" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--fg-tertiary)", padding: 4, display: "inline-flex" }}>
+                  <button type="button" onClick={() => { setEditorGame(detail); setEditorOpen(true); }} title="Edit activity" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--fg-tertiary)", padding: 4, display: "inline-flex" }}>
                     <Pencil style={{ width: 15, height: 15 }} />
                   </button>
                 )}
@@ -319,6 +343,7 @@ export default function GamesLibraryPage() {
       {editorOpen && (
         <GameEditorModal
           areas={areas}
+          programs={programs}
           game={editorGame}
           onClose={() => setEditorOpen(false)}
           onSaved={onSaved}

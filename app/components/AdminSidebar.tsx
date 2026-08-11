@@ -51,7 +51,7 @@ const SECTIONS: NavSection[] = [
     label: "Main",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/students", label: "Students", icon: Users },
+      { href: "/students", label: "Stars", icon: Users },
       { href: "/attendance", label: "Attendance", icon: CalendarCheck },
       { href: "/calendar", label: "Calendar", icon: Calendar },
     ],
@@ -67,10 +67,10 @@ const SECTIONS: NavSection[] = [
     items: [
       { href: "/roster", label: "Roster", icon: ClipboardList },
       { href: "/tracker", label: "Weekly Data", icon: PenLine },
-      { href: "/planning", label: "Per-Student Planning", icon: Goal },
+      { href: "/planning", label: "Per-Star Planning", icon: Goal },
       { href: "/year-calendar", label: "Year Calendar", icon: CalendarRange },
       { href: "/cohort-rollup", label: "Cohort Roll-Up", icon: PieChart, adminOnly: true },
-      { href: "/games", label: "Games Library", icon: Gamepad2 },
+      { href: "/games", label: "Curriculum Resources", icon: Gamepad2 },
       { href: "/games/develop", label: "To Develop", icon: Lightbulb },
       { href: "/skills", label: "Skills Framework", icon: Target },
     ],

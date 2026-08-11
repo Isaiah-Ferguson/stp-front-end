@@ -15,11 +15,22 @@ type AddParticipantForm = {
   nm: string;
   birthYear: string;
   programId: string;
-  status: "active" | "prospective";
+  status: "active" | "prospective" | "authpending";
   sc: string;
+  guardianName: string;
+  guardianPhone: string;
+  guardianEmail: string;
+  referralSource: string;
+  tShirtSize: string;
+  authExpiry: string;
 };
 
-const EMPTY_FORM: AddParticipantForm = { nm: "", birthYear: "", programId: "", status: "prospective", sc: "" };
+const EMPTY_FORM: AddParticipantForm = {
+  nm: "", birthYear: "", programId: "", status: "prospective", sc: "",
+  guardianName: "", guardianPhone: "", guardianEmail: "", referralSource: "", tShirtSize: "", authExpiry: "",
+};
+
+const T_SHIRT_SIZES = ["YS", "YM", "YL", "S", "M", "L", "XL", "2XL"];
 
 function toInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -45,7 +56,7 @@ export default function AddParticipantModal({
   const canSubmit = form.nm.trim().length > 0 && form.programId !== "" && !saving;
 
   async function handleSubmit() {
-    const statusMap: Record<string, ParticipantStatus> = { active: "Active", prospective: "Prospective" };
+    const statusMap: Record<string, ParticipantStatus> = { active: "Active", prospective: "Prospective", authpending: "AuthPending" };
     const dto: CreateParticipantDto = {
       fullName: form.nm.trim(),
       initials: toInitials(form.nm),
@@ -53,6 +64,12 @@ export default function AddParticipantModal({
       status: statusMap[form.status] ?? "Prospective",
       birthYear: form.birthYear ? parseInt(form.birthYear) : undefined,
       serviceCoordinator: form.sc.trim() || undefined,
+      guardianName: form.guardianName.trim() || undefined,
+      guardianPhone: form.guardianPhone.trim() || undefined,
+      guardianEmail: form.guardianEmail.trim() || undefined,
+      referralSource: form.referralSource.trim() || undefined,
+      tShirtSize: form.tShirtSize || undefined,
+      authorizationExpiry: form.authExpiry || undefined,
     };
 
     setSaving(true);
@@ -64,7 +81,7 @@ export default function AddParticipantModal({
       queryClient.invalidateQueries({ queryKey: ["program-detail"] });
       onClose();
     } catch {
-      setError("Could not save student — check that the backend is running and try again.");
+      setError("Could not save star — check that the backend is running and try again.");
       setSaving(false);
     }
   }
@@ -84,8 +101,8 @@ export default function AddParticipantModal({
       <div style={{ background: "var(--surface)", borderRadius: "var(--r-lg)", width: "min(480px, 100%)", display: "flex", flexDirection: "column", border: "0.5px solid var(--border-hover)", maxHeight: "90vh" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "var(--space-4)", borderBottom: "0.5px solid var(--border)", flexShrink: 0 }}>
           <div>
-            <h3 style={{ fontSize: 15, fontWeight: 500, margin: "0 0 2px" }}>Add student</h3>
-            <div style={{ fontSize: 12, color: "var(--fg-tertiary)" }}>New student will appear in the roster</div>
+            <h3 style={{ fontSize: 15, fontWeight: 500, margin: "0 0 2px" }}>Add star</h3>
+            <div style={{ fontSize: 12, color: "var(--fg-tertiary)" }}>New star will appear in the roster</div>
           </div>
           <button type="button" onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--fg-tertiary)", padding: 4, borderRadius: "var(--r-sm)" }}>
             <X style={{ width: 16, height: 16 }} />
@@ -122,9 +139,9 @@ export default function AddParticipantModal({
           <div>
             <div className="ss-label" style={{ marginBottom: 8 }}>Status</div>
             <div style={{ display: "flex", gap: 6 }}>
-              {(["prospective", "active"] as const).map((s) => (
+              {([["prospective", "Prospective"], ["active", "Active"], ["authpending", "Auth pending"]] as const).map(([s, label]) => (
                 <button key={s} type="button" className={`ss-chip${form.status === s ? " is-active" : ""}`} style={{ cursor: "pointer" }} onClick={() => setForm((f) => ({ ...f, status: s }))}>
-                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                  {label}
                 </button>
               ))}
             </div>
@@ -133,6 +150,41 @@ export default function AddParticipantModal({
           <div>
             <div className="ss-label" style={{ marginBottom: 6 }}>Service coordinator <span style={{ fontSize: 11, color: "var(--fg-tertiary)", fontWeight: 400 }}>Optional</span></div>
             <input type="text" placeholder="e.g. R. Alvarez" value={form.sc} onChange={(e) => setForm((f) => ({ ...f, sc: e.target.value }))} style={inputStyle} />
+          </div>
+
+          <div style={{ borderTop: "0.5px solid var(--border)", paddingTop: "var(--space-3)" }}>
+            <div className="ss-label" style={{ marginBottom: 6 }}>Guardian name <span style={{ fontSize: 11, color: "var(--fg-tertiary)", fontWeight: 400 }}>Optional</span></div>
+            <input type="text" placeholder="e.g. Maria Rivera" value={form.guardianName} onChange={(e) => setForm((f) => ({ ...f, guardianName: e.target.value }))} style={inputStyle} />
+          </div>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ flex: 1 }}>
+              <div className="ss-label" style={{ marginBottom: 6 }}>Guardian phone</div>
+              <input type="tel" placeholder="(209) 555-0100" value={form.guardianPhone} onChange={(e) => setForm((f) => ({ ...f, guardianPhone: e.target.value }))} style={inputStyle} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div className="ss-label" style={{ marginBottom: 6 }}>Guardian email</div>
+              <input type="email" placeholder="name@email.com" value={form.guardianEmail} onChange={(e) => setForm((f) => ({ ...f, guardianEmail: e.target.value }))} style={inputStyle} />
+            </div>
+          </div>
+
+          <div>
+            <div className="ss-label" style={{ marginBottom: 6 }}>Referral source <span style={{ fontSize: 11, color: "var(--fg-tertiary)", fontWeight: 400 }}>Optional</span></div>
+            <input type="text" placeholder="e.g. VMRC, word of mouth" value={form.referralSource} onChange={(e) => setForm((f) => ({ ...f, referralSource: e.target.value }))} style={inputStyle} />
+          </div>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ flex: 1 }}>
+              <div className="ss-label" style={{ marginBottom: 6 }}>T-shirt size</div>
+              <select value={form.tShirtSize} onChange={(e) => setForm((f) => ({ ...f, tShirtSize: e.target.value }))} style={inputStyle}>
+                <option value="">Not set</option>
+                {T_SHIRT_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div className="ss-label" style={{ marginBottom: 6 }}>Authorization expires</div>
+              <input type="date" value={form.authExpiry} onChange={(e) => setForm((f) => ({ ...f, authExpiry: e.target.value }))} style={inputStyle} />
+            </div>
           </div>
         </div>
 
@@ -146,7 +198,7 @@ export default function AddParticipantModal({
           <button className="ss-btn" type="button" onClick={onClose}>Cancel</button>
           <button className="ss-btn ss-btn-primary" type="button" onClick={handleSubmit} disabled={!canSubmit}>
             <UserPlus className="ss-btn-icon" />
-            {saving ? "Saving…" : "Add student"}
+            {saving ? "Saving…" : "Add star"}
           </button>
         </div>
       </div>

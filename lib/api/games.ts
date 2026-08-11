@@ -15,6 +15,7 @@ function toQuery(filter?: GameFilter): string {
   if (filter.subSkillId) p.set("subSkillId", filter.subSkillId);
   if (filter.category) p.set("category", filter.category);
   if (filter.q && filter.q.trim()) p.set("q", filter.q.trim());
+  if (filter.programId) p.set("programId", filter.programId);
   const s = p.toString();
   return s ? `?${s}` : "";
 }

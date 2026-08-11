@@ -20,6 +20,7 @@ import {
   Check,
   CheckCircle2,
   MinusCircle,
+  ShieldAlert,
   FileX,
   type LucideIcon,
 } from "lucide-react";
@@ -33,7 +34,7 @@ import type {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Status = "active" | "prospective" | "attention" | "former";
+type Status = "active" | "prospective" | "attention" | "former" | "authpending";
 type AlertKind = "expiring" | "overdue" | "missing";
 type StatusTab = "all" | Status;
 type SortKey = "name" | "att" | "start";
@@ -43,6 +44,7 @@ const STATUS_BADGE: Record<Status, { cls: string; icon: LucideIcon; label: strin
   prospective: { cls: "is-prospective", icon: Clock,        label: "Prospective" },
   attention:   { cls: "is-attention",   icon: AlertCircle,  label: "Needs attention" },
   former:      { cls: "is-former",      icon: MinusCircle,  label: "Former" },
+  authpending: { cls: "is-authpending", icon: ShieldAlert,  label: "Auth pending" },
 };
 
 const ALERT_ICON: Record<AlertKind, { icon: LucideIcon; cls: string }> = {
@@ -64,7 +66,20 @@ type Student = {
   sc: string;
   start: string;
   startRaw: string;
+  guardianName: string;
+  guardianPhone: string;
+  guardianEmail: string;
+  referralSource: string;
+  tShirtSize: string;
+  authExpiry: string;
 };
+
+/** Days until the yyyy-MM-dd date; negative = already past. Null when unset. */
+function daysUntil(iso: string | null): number | null {
+  if (!iso) return null;
+  const d = parseLocalDate(iso);
+  return Math.ceil((d.getTime() - Date.now()) / 86_400_000);
+}
 
 // ── DTO → local type ──────────────────────────────────────────────────────────
 
@@ -79,19 +94,34 @@ function dtoToStudent(dto: ParticipantSummaryDto): Student {
     prog: dto.programSlug,
     progName: dto.programName,
     status: dto.status.toLowerCase() as Status,
-    alerts: dto.hasDocAlerts ? ["expiring"] : [],
+    alerts: buildAlerts(dto),
     att: dto.attendancePct,
     sc: dto.serviceCoordinator ?? "—",
     start: startLabel,
     startRaw: dto.startDate,
+    guardianName: dto.guardianName ?? "",
+    guardianPhone: dto.guardianPhone ?? "",
+    guardianEmail: dto.guardianEmail ?? "",
+    referralSource: dto.referralSource ?? "",
+    tShirtSize: dto.tShirtSize ?? "",
+    authExpiry: dto.authorizationExpiry ?? "",
   };
+}
+
+function buildAlerts(dto: ParticipantSummaryDto): AlertKind[] {
+  const alerts: AlertKind[] = dto.hasDocAlerts ? ["expiring"] : [];
+  // Authorization expiring within a month (or already expired) surfaces as an alert.
+  const days = daysUntil(dto.authorizationExpiry);
+  if (days !== null && days < 0 && !alerts.includes("overdue")) alerts.push("overdue");
+  else if (days !== null && days <= 31 && days >= 0 && !alerts.includes("expiring")) alerts.push("expiring");
+  return alerts;
 }
 
 function exportCsv(rows: Student[]) {
   const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
-  const header = ["Name", "Birth year", "Program", "Status", "Alerts", "Attendance %", "Service coordinator", "Started"];
+  const header = ["Name", "Birth year", "Program", "Status", "Alerts", "Attendance %", "Service coordinator", "Started", "Guardian", "Guardian phone", "Guardian email", "Referral source", "T-shirt size", "Authorization expiry"];
   const lines = rows.map((s) =>
-    [s.nm, s.birthYear, s.progName, STATUS_BADGE[s.status]?.label ?? s.status, s.alerts.join("; ") || "none", s.att, s.sc, s.startRaw]
+    [s.nm, s.birthYear, s.progName, STATUS_BADGE[s.status]?.label ?? s.status, s.alerts.join("; ") || "none", s.att, s.sc, s.startRaw, s.guardianName, s.guardianPhone, s.guardianEmail, s.referralSource, s.tShirtSize, s.authExpiry]
       .map(esc)
       .join(",")
   );
@@ -99,7 +129,7 @@ function exportCsv(rows: Student[]) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "students.csv";
+  a.download = "stars.csv";
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -135,6 +165,7 @@ export default function StudentsPage() {
     prospective: data.filter((d) => d.status === "prospective").length,
     attention:   data.filter((d) => d.status === "attention").length,
     former:      data.filter((d) => d.status === "former").length,
+    authpending: data.filter((d) => d.status === "authpending").length,
   };
 
   const alertStudentCount = data.filter((d) => d.alerts.length > 0).length;
@@ -235,9 +266,10 @@ export default function StudentsPage() {
   ].join(" · ");
 
   const TAB_DEFS: { key: StatusTab; cls: string; label: string; count: number }[] = [
-    { key: "all",         cls: "",      label: "All Students",    count: counts.all },
+    { key: "all",         cls: "",      label: "All Stars",       count: counts.all },
     { key: "active",      cls: "green", label: "Active",          count: counts.active },
     { key: "prospective", cls: "amber", label: "Prospective",     count: counts.prospective },
+    { key: "authpending", cls: "blue",  label: "Auth Pending",    count: counts.authpending },
     { key: "attention",   cls: "red",   label: "Needs Attention", count: counts.attention },
     { key: "former",      cls: "gray",  label: "Former",          count: counts.former },
   ];
@@ -246,12 +278,12 @@ export default function StudentsPage() {
     <div className="adm-main">
       <div className="adm-topbar">
         <div className="titles">
-          <h1>Students</h1>
+          <h1>Stars</h1>
         </div>
         <div className="right">
           <button className="ss-btn ss-btn-primary" type="button" onClick={() => setModalOpen(true)}>
             <UserPlus className="ss-btn-icon" />
-            Add student
+            Add star
           </button>
           <button
             className="ss-btn"
@@ -287,7 +319,7 @@ export default function StudentsPage() {
           <div className="ss-alert is-danger">
             <AlertTriangle />
             <span className="ss-alert-text">
-              <strong>{alertStudentCount} student{alertStudentCount > 1 ? "s" : ""} require action</strong> — expiring POS, missing intake docs, or overdue follow-up.
+              <strong>{alertStudentCount} star{alertStudentCount > 1 ? "s" : ""} require action</strong> — expiring authorization, missing intake docs, or overdue follow-up.
             </span>
             <button
               className="ss-alert-action"
@@ -342,7 +374,7 @@ export default function StudentsPage() {
             <Search />
             <input
               type="text"
-              placeholder="Search students…"
+              placeholder="Search stars…"
               value={query}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -374,7 +406,7 @@ export default function StudentsPage() {
                       onClick={toggleAllVisible}
                     />
                   </th>
-                  {sortableTh("name", "Student")}
+                  {sortableTh("name", "Star")}
                   <th>Program</th>
                   <th>Status</th>
                   <th>Alerts</th>
@@ -409,7 +441,7 @@ export default function StudentsPage() {
                   <tr>
                     <td colSpan={8}>
                       <LoadError
-                        title="Couldn't load students"
+                        title="Couldn't load stars"
                         error={participantsQ.error}
                         onRetry={() => participantsQ.refetch()}
                       />
@@ -418,7 +450,7 @@ export default function StudentsPage() {
                 ) : filtered.length === 0 ? (
                   <tr>
                     <td colSpan={8} style={{ textAlign: "center", padding: "40px 0", color: "var(--fg-tertiary)", fontSize: 13 }}>
-                      {data.length === 0 ? "No students yet — add one to get started." : "No students match the current filters."}
+                      {data.length === 0 ? "No stars yet — add one to get started." : "No stars match the current filters."}
                     </td>
                   </tr>
                 ) : pageRows.map((d) => {
@@ -491,7 +523,7 @@ export default function StudentsPage() {
           </div>
           <div className="tbl-foot">
             <span className="info">
-              Showing {filtered.length === 0 ? 0 : pageStart + 1}–{Math.min(pageStart + rowsPerPage, filtered.length)} of {filtered.length} student{filtered.length === 1 ? "" : "s"}
+              Showing {filtered.length === 0 ? 0 : pageStart + 1}–{Math.min(pageStart + rowsPerPage, filtered.length)} of {filtered.length} star{filtered.length === 1 ? "" : "s"}
             </span>
             <span className="info">· {filterSummary}</span>
             {selected.size > 0 && <span className="info">· {selected.size} selected</span>}

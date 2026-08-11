@@ -48,8 +48,9 @@ const STATUS_BADGE: Record<ParticipantStatus, { type: string; text: string }> = 
   Prospective: { type: "prospective", text: "Prospective" },
   Attention:   { type: "attention",   text: "Needs attention" },
   Former:      { type: "info",        text: "Former" },
+  AuthPending: { type: "prospective", text: "Auth pending" },
 };
-const STATUS_ORDER: Record<ParticipantStatus, number> = { Attention: 0, Prospective: 1, Active: 2, Former: 3 };
+const STATUS_ORDER: Record<ParticipantStatus, number> = { Attention: 0, AuthPending: 1, Prospective: 2, Active: 3, Former: 4 };
 
 function EmptyRow({ text }: { text: string }) {
   return <div style={{ padding: "18px 0", textAlign: "center", fontSize: 13, color: "var(--fg-tertiary)" }}>{text}</div>;
@@ -112,13 +113,42 @@ export default function DashboardPage() {
         act: "Review",
         href: `/students/${p.id}`,
       }));
+
+    // Authorizations expiring within a month (or already expired) — in-app notification.
+    for (const p of participants) {
+      if (items.length >= 5) break;
+      if (!p.authorizationExpiry) continue;
+      const days = Math.ceil((parseDate(p.authorizationExpiry).getTime() - Date.now()) / 86_400_000);
+      if (days > 31) continue;
+      items.push({
+        severity: days < 0 ? "danger" : "warning",
+        txt: days < 0
+          ? `${p.fullName} — authorization expired`
+          : `${p.fullName} — authorization expires in ${days} day${days === 1 ? "" : "s"}`,
+        sub: `${p.programName} · renew authorization`,
+        act: "Review",
+        href: `/students/${p.id}`,
+      });
+    }
+
     const prospective = participants.filter((p) => p.status === "Prospective");
     if (prospective.length && items.length < 5) {
       items.push({
         severity: "info",
-        txt: `${prospective.length} prospective student${prospective.length > 1 ? "s" : ""} awaiting follow-up`,
+        txt: `${prospective.length} prospective star${prospective.length > 1 ? "s" : ""} awaiting follow-up`,
         sub: "Assign a coordinator",
         act: "Assign",
+        href: "/students",
+      });
+    }
+
+    const authPending = participants.filter((p) => p.status === "AuthPending");
+    if (authPending.length && items.length < 6) {
+      items.push({
+        severity: "warning",
+        txt: `${authPending.length} star${authPending.length > 1 ? "s" : ""} awaiting authorization`,
+        sub: "Admin/instructor sign-off needed",
+        act: "Review",
         href: "/students",
       });
     }
@@ -249,7 +279,7 @@ export default function DashboardPage() {
           </div>
           <button className="ss-btn ss-btn-primary" type="button" onClick={() => setAddOpen(true)}>
             <Plus className="ss-btn-icon" />
-            Add student
+            Add star
           </button>
         </div>
       </div>
@@ -265,7 +295,7 @@ export default function DashboardPage() {
         {/* stat grid */}
         <div className="adm-statgrid">
           <StatCard
-            label="Active Students"
+            label="Active Stars"
             num={dash(activeCount)}
             delta={newThisMonth > 0 ? <><TrendingUp /> +{newThisMonth} this month</> : <><Users /> {participants.length} total</>}
             deltaClass={newThisMonth > 0 ? "up" : "muted"}
@@ -327,8 +357,8 @@ export default function DashboardPage() {
 
         {/* row 3: pipeline + tasks + onboarding */}
         <div className="adm-row3">
-          <Widget id="pipeline-heading" title="Student Pipeline" icon={<GitBranch className="ico ico--primary" />}>
-            {loading ? <SkeletonList rows={3} /> : pipeline.length ? <PipelineList items={pipeline} /> : <EmptyRow text="No students yet" />}
+          <Widget id="pipeline-heading" title="Star Pipeline" icon={<GitBranch className="ico ico--primary" />}>
+            {loading ? <SkeletonList rows={3} /> : pipeline.length ? <PipelineList items={pipeline} /> : <EmptyRow text="No stars yet" />}
           </Widget>
 
           <Widget id="tasks-heading" title="Open Tasks" icon={<CheckSquare className="ico ico--primary" />} linkText="View all" linkHref="/tasks">

@@ -19,6 +19,8 @@ import {
   Clock,
   AlertCircle,
   MinusCircle,
+  ShieldAlert,
+  AlertTriangle,
   type LucideIcon,
 } from "lucide-react";
 import { participantsApi } from "@/lib/api/participants";
@@ -34,14 +36,23 @@ import type {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const STATUSES: ParticipantStatus[] = ["Active", "Prospective", "Attention", "Former"];
+const STATUSES: ParticipantStatus[] = ["Active", "Prospective", "AuthPending", "Attention", "Former"];
 
 const STATUS_BADGE: Record<ParticipantStatus, { cls: string; icon: LucideIcon; label: string }> = {
   Active:      { cls: "is-active",      icon: CheckCircle2, label: "Active" },
   Prospective: { cls: "is-prospective", icon: Clock,        label: "Prospective" },
   Attention:   { cls: "is-attention",   icon: AlertCircle,  label: "Needs attention" },
   Former:      { cls: "is-former",      icon: MinusCircle,  label: "Former" },
+  AuthPending: { cls: "is-authpending", icon: ShieldAlert,  label: "Auth pending" },
 };
+
+const T_SHIRT_SIZES = ["YS", "YM", "YL", "S", "M", "L", "XL", "2XL"];
+
+/** Days until the yyyy-MM-dd date; negative = already past. Null when unset. */
+function daysUntil(iso: string | null): number | null {
+  if (!iso) return null;
+  return Math.ceil((parseLocalDate(iso).getTime() - Date.now()) / 86_400_000);
+}
 
 function toInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -62,7 +73,11 @@ const inputStyle: React.CSSProperties = {
   background: "var(--surface)", outline: "none",
 };
 
-type Form = { fullName: string; status: ParticipantStatus; programId: string; birthYear: string; sc: string };
+type Form = {
+  fullName: string; status: ParticipantStatus; programId: string; birthYear: string; sc: string;
+  guardianName: string; guardianPhone: string; guardianEmail: string;
+  referralSource: string; tShirtSize: string; authExpiry: string; intakeNotes: string;
+};
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -76,7 +91,10 @@ export default function ParticipantProfile({ id }: { id: string }) {
   const [missing, setMissing] = useState(false);
 
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState<Form>({ fullName: "", status: "Active", programId: "", birthYear: "", sc: "" });
+  const [form, setForm] = useState<Form>({
+    fullName: "", status: "Active", programId: "", birthYear: "", sc: "",
+    guardianName: "", guardianPhone: "", guardianEmail: "", referralSource: "", tShirtSize: "", authExpiry: "", intakeNotes: "",
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -103,6 +121,13 @@ export default function ParticipantProfile({ id }: { id: string }) {
       programId: d.programId,
       birthYear: d.birthYear != null ? String(d.birthYear) : "",
       sc: d.serviceCoordinator ?? "",
+      guardianName: d.guardianName ?? "",
+      guardianPhone: d.guardianPhone ?? "",
+      guardianEmail: d.guardianEmail ?? "",
+      referralSource: d.referralSource ?? "",
+      tShirtSize: d.tShirtSize ?? "",
+      authExpiry: d.authorizationExpiry ?? "",
+      intakeNotes: d.intakeNotes ?? "",
     };
   }
 
@@ -122,6 +147,14 @@ export default function ParticipantProfile({ id }: { id: string }) {
       status: form.status,
       birthYear: form.birthYear ? parseInt(form.birthYear, 10) : undefined,
       serviceCoordinator: form.sc.trim(),
+      guardianName: form.guardianName.trim(),
+      guardianPhone: form.guardianPhone.trim(),
+      guardianEmail: form.guardianEmail.trim(),
+      referralSource: form.referralSource.trim(),
+      tShirtSize: form.tShirtSize,
+      intakeNotes: form.intakeNotes.trim(),
+      authorizationExpiry: form.authExpiry || undefined,
+      clearAuthorizationExpiry: !form.authExpiry,
     };
     try {
       const updated = await participantsApi.update(id, dto);
@@ -143,7 +176,7 @@ export default function ParticipantProfile({ id }: { id: string }) {
     } catch {
       setDeleting(false);
       setDeleteOpen(false);
-      setError("Could not delete this student — try again.");
+      setError("Could not delete this star — try again.");
     }
   }
 
@@ -162,9 +195,9 @@ export default function ParticipantProfile({ id }: { id: string }) {
       <div className="adm-main">
         <div className="adm-content" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "50vh", gap: 10, textAlign: "center" }}>
           <AlertCircle style={{ width: 26, height: 26, color: "var(--fg-tertiary)" }} />
-          <h2 style={{ fontSize: 16, fontWeight: 500, margin: 0 }}>Student not found</h2>
-          <p style={{ fontSize: 13, color: "var(--fg-tertiary)" }}>This student may have been removed.</p>
-          <Link href="/students" className="ss-btn"><ArrowLeft className="ss-btn-icon" />Back to students</Link>
+          <h2 style={{ fontSize: 16, fontWeight: 500, margin: 0 }}>Star not found</h2>
+          <p style={{ fontSize: 13, color: "var(--fg-tertiary)" }}>This star may have been removed.</p>
+          <Link href="/students" className="ss-btn"><ArrowLeft className="ss-btn-icon" />Back to stars</Link>
         </div>
       </div>
     );
@@ -175,6 +208,19 @@ export default function ParticipantProfile({ id }: { id: string }) {
   const BadgeIcon = badge.icon;
 
   // ── View / edit fields ──────────────────────────────────────────────────────
+  // Expiry within a month shows amber; past-due shows red — matches the client's
+  // "notify a month in advance" rule (in-app only).
+  const authExpiryView = (iso: string | null) => {
+    if (!iso) return "—";
+    const days = daysUntil(iso);
+    const label = fmtDate(iso);
+    if (days !== null && days < 0)
+      return <span className="ss-date-expired"><AlertTriangle />Expired {label}</span>;
+    if (days !== null && days <= 31)
+      return <span className="ss-date-expiring"><AlertTriangle />{label} · in {days} day{days === 1 ? "" : "s"}</span>;
+    return label;
+  };
+
   const field = (label: string, view: React.ReactNode, edit: React.ReactNode) => (
     <div>
       <div className="ss-label" style={{ marginBottom: 6 }}>{label}</div>
@@ -189,7 +235,7 @@ export default function ParticipantProfile({ id }: { id: string }) {
         <div className="adm-topbar">
           <div className="titles">
             <Link href="/students" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "var(--fg-tertiary)", textDecoration: "none", marginBottom: 2 }}>
-              <ArrowLeft style={{ width: 13, height: 13 }} />Students
+              <ArrowLeft style={{ width: 13, height: 13 }} />Stars
             </Link>
             <h1>{detail.fullName}</h1>
           </div>
@@ -244,7 +290,7 @@ export default function ParticipantProfile({ id }: { id: string }) {
           <div className="widget">
             <div className="widget-head">
               <UserIcon className="ico" style={{ color: "var(--primary)" }} />
-              <h3>Student details</h3>
+              <h3>Star details</h3>
             </div>
             <div className="widget-body" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-4)" }}>
               {field(
@@ -313,6 +359,62 @@ export default function ParticipantProfile({ id }: { id: string }) {
             </div>
           </div>
 
+          {/* intake information */}
+          <div className="widget">
+            <div className="widget-head">
+              <FileText className="ico" style={{ color: "var(--primary)" }} />
+              <h3>Intake information</h3>
+            </div>
+            <div className="widget-body" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-4)" }}>
+              {field(
+                "Guardian name",
+                detail.guardianName || "—",
+                <input type="text" value={form.guardianName} placeholder="e.g. Maria Rivera" onChange={(e) => setForm((f) => ({ ...f, guardianName: e.target.value }))} style={inputStyle} />
+              )}
+
+              {field(
+                "Guardian phone",
+                detail.guardianPhone || "—",
+                <input type="tel" value={form.guardianPhone} placeholder="(209) 555-0100" onChange={(e) => setForm((f) => ({ ...f, guardianPhone: e.target.value }))} style={inputStyle} />
+              )}
+
+              {field(
+                "Guardian email",
+                detail.guardianEmail || "—",
+                <input type="email" value={form.guardianEmail} placeholder="name@email.com" onChange={(e) => setForm((f) => ({ ...f, guardianEmail: e.target.value }))} style={inputStyle} />
+              )}
+
+              {field(
+                "Referral source",
+                detail.referralSource || "—",
+                <input type="text" value={form.referralSource} placeholder="e.g. VMRC, word of mouth" onChange={(e) => setForm((f) => ({ ...f, referralSource: e.target.value }))} style={inputStyle} />
+              )}
+
+              {field(
+                "T-shirt size",
+                detail.tShirtSize || "—",
+                <select value={form.tShirtSize} onChange={(e) => setForm((f) => ({ ...f, tShirtSize: e.target.value }))} style={{ ...inputStyle, width: "60%" }}>
+                  <option value="">Not set</option>
+                  {T_SHIRT_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              )}
+
+              {field(
+                "Authorization expires",
+                authExpiryView(detail.authorizationExpiry),
+                <input type="date" value={form.authExpiry} onChange={(e) => setForm((f) => ({ ...f, authExpiry: e.target.value }))} style={inputStyle} />
+              )}
+
+              <div style={{ gridColumn: "1 / -1" }}>
+                {field(
+                  "Intake notes",
+                  detail.intakeNotes || "—",
+                  <textarea value={form.intakeNotes} rows={3} placeholder="Anything worth remembering from intake…" onChange={(e) => setForm((f) => ({ ...f, intakeNotes: e.target.value }))} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }} />
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* arts profile (Student Frame) */}
           <ArtsProfileWidget participantId={id} />
 
@@ -360,7 +462,7 @@ export default function ParticipantProfile({ id }: { id: string }) {
                 <span style={{ display: "inline-flex", width: 32, height: 32, borderRadius: "50%", background: "var(--danger-fill, #fce8e8)", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <Trash2 style={{ width: 16, height: 16, color: "var(--danger)" }} />
                 </span>
-                <h3 style={{ fontSize: 15, fontWeight: 500, margin: 0 }}>Delete student?</h3>
+                <h3 style={{ fontSize: 15, fontWeight: 500, margin: 0 }}>Delete star?</h3>
               </div>
               <p style={{ fontSize: 13, color: "var(--fg-secondary)", lineHeight: 1.5, margin: 0 }}>
                 <strong>{detail.fullName}</strong> will be permanently removed, along with their attendance records. This can&apos;t be undone.
