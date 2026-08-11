@@ -266,9 +266,10 @@ export type AddStaffForm = {
   role: StaffRole | "";
   programIds: string[];
   startDate: string;
+  tShirtSize: string;
 };
 
-export const EMPTY_STAFF_FORM: AddStaffForm = { nm: "", role: "", programIds: [], startDate: "" };
+export const EMPTY_STAFF_FORM: AddStaffForm = { nm: "", role: "", programIds: [], startDate: "", tShirtSize: "" };
 
 export function AddStaffModal({
   programs,
@@ -355,6 +356,14 @@ export function AddStaffModal({
           <div>
             <div className="ss-label" style={{ marginBottom: 6 }}>Start date <span style={{ fontSize: 11, color: "var(--fg-tertiary)", fontWeight: 400 }}>Leave blank to use today</span></div>
             <input type="date" value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))} style={{ ...inputStyle, width: "60%" }} />
+          </div>
+
+          <div>
+            <div className="ss-label" style={{ marginBottom: 6 }}>T-shirt size <span style={{ fontSize: 11, color: "var(--fg-tertiary)", fontWeight: 400 }}>Optional</span></div>
+            <select value={form.tShirtSize} onChange={(e) => setForm((f) => ({ ...f, tShirtSize: e.target.value }))} style={{ ...inputStyle, width: "40%" }}>
+              <option value="">Not set</option>
+              {["S", "M", "L", "XL", "2XL"].map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
           </div>
         </div>
 

@@ -248,6 +248,8 @@
 .ss-badge.is-former { background: var(--neutral-fill); color: var(--neutral-text); }
 .ss-badge.is-attention { background: var(--danger-fill); color: var(--danger-text); }
 .ss-badge.is-authpending { background: var(--info-fill); color: var(--info-text); }
+.ss-badge.is-inquiry { background: var(--warning-fill); color: var(--warning-text); }
+.ss-badge.is-notinterested { background: var(--neutral-fill); color: var(--neutral-text); }
 
 /* ============================================================
    6. ATTENDANCE STATUS BUTTONS

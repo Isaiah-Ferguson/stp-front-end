@@ -34,7 +34,7 @@ import type {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Status = "active" | "prospective" | "attention" | "former" | "authpending";
+type Status = "active" | "prospective" | "attention" | "former" | "authpending" | "inquiry" | "notinterested";
 type AlertKind = "expiring" | "overdue" | "missing";
 type StatusTab = "all" | Status;
 type SortKey = "name" | "att" | "start";
@@ -45,6 +45,8 @@ const STATUS_BADGE: Record<Status, { cls: string; icon: LucideIcon; label: strin
   attention:   { cls: "is-attention",   icon: AlertCircle,  label: "Needs attention" },
   former:      { cls: "is-former",      icon: MinusCircle,  label: "Former" },
   authpending: { cls: "is-authpending", icon: ShieldAlert,  label: "Auth pending" },
+  inquiry:     { cls: "is-inquiry",     icon: Search,       label: "Inquiry" },
+  notinterested: { cls: "is-notinterested", icon: MinusCircle, label: "Not interested" },
 };
 
 const ALERT_ICON: Record<AlertKind, { icon: LucideIcon; cls: string }> = {
@@ -72,6 +74,10 @@ type Student = {
   referralSource: string;
   tShirtSize: string;
   authExpiry: string;
+  ippExpiry: string;
+  dob: string;
+  allergies: string;
+  secondaryProgName: string;
 };
 
 /** Days until the yyyy-MM-dd date; negative = already past. Null when unset. */
@@ -105,23 +111,29 @@ function dtoToStudent(dto: ParticipantSummaryDto): Student {
     referralSource: dto.referralSource ?? "",
     tShirtSize: dto.tShirtSize ?? "",
     authExpiry: dto.authorizationExpiry ?? "",
+    ippExpiry: dto.ippExpiry ?? "",
+    dob: dto.dateOfBirth ?? "",
+    allergies: dto.allergies ? `${dto.allergies}${dto.allergyAnaphylactic ? " *" : ""}` : "",
+    secondaryProgName: dto.secondaryProgramName ?? "",
   };
 }
 
 function buildAlerts(dto: ParticipantSummaryDto): AlertKind[] {
   const alerts: AlertKind[] = dto.hasDocAlerts ? ["expiring"] : [];
-  // Authorization expiring within a month (or already expired) surfaces as an alert.
-  const days = daysUntil(dto.authorizationExpiry);
-  if (days !== null && days < 0 && !alerts.includes("overdue")) alerts.push("overdue");
-  else if (days !== null && days <= 31 && days >= 0 && !alerts.includes("expiring")) alerts.push("expiring");
+  // POS authorization or IPP expiring within a month (or already expired) surfaces as an alert.
+  for (const iso of [dto.authorizationExpiry, dto.ippExpiry]) {
+    const days = daysUntil(iso);
+    if (days !== null && days < 0 && !alerts.includes("overdue")) alerts.push("overdue");
+    else if (days !== null && days <= 31 && days >= 0 && !alerts.includes("expiring")) alerts.push("expiring");
+  }
   return alerts;
 }
 
 function exportCsv(rows: Student[]) {
   const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
-  const header = ["Name", "Birth year", "Program", "Status", "Alerts", "Attendance %", "Service coordinator", "Started", "Guardian", "Guardian phone", "Guardian email", "Referral source", "T-shirt size", "Authorization expiry"];
+  const header = ["Name", "DOB", "Birth year", "Program", "Also enrolled in", "Status", "Alerts", "Attendance %", "Service coordinator", "Started", "Guardian", "Guardian phone", "Guardian email", "Referral source", "T-shirt size", "POS expiry", "IPP expiry", "Allergies (* = anaphylactic)"];
   const lines = rows.map((s) =>
-    [s.nm, s.birthYear, s.progName, STATUS_BADGE[s.status]?.label ?? s.status, s.alerts.join("; ") || "none", s.att, s.sc, s.startRaw, s.guardianName, s.guardianPhone, s.guardianEmail, s.referralSource, s.tShirtSize, s.authExpiry]
+    [s.nm, s.dob, s.birthYear, s.progName, s.secondaryProgName, STATUS_BADGE[s.status]?.label ?? s.status, s.alerts.join("; ") || "none", s.att, s.sc, s.startRaw, s.guardianName, s.guardianPhone, s.guardianEmail, s.referralSource, s.tShirtSize, s.authExpiry, s.ippExpiry, s.allergies]
       .map(esc)
       .join(",")
   );
@@ -166,6 +178,8 @@ export default function StudentsPage() {
     attention:   data.filter((d) => d.status === "attention").length,
     former:      data.filter((d) => d.status === "former").length,
     authpending: data.filter((d) => d.status === "authpending").length,
+    inquiry: data.filter((d) => d.status === "inquiry").length,
+    notinterested: data.filter((d) => d.status === "notinterested").length,
   };
 
   const alertStudentCount = data.filter((d) => d.alerts.length > 0).length;
@@ -268,10 +282,12 @@ export default function StudentsPage() {
   const TAB_DEFS: { key: StatusTab; cls: string; label: string; count: number }[] = [
     { key: "all",         cls: "",      label: "All Stars",       count: counts.all },
     { key: "active",      cls: "green", label: "Active",          count: counts.active },
+    { key: "inquiry",     cls: "amber", label: "Inquiry",         count: counts.inquiry },
     { key: "prospective", cls: "amber", label: "Prospective",     count: counts.prospective },
     { key: "authpending", cls: "blue",  label: "Auth Pending",    count: counts.authpending },
     { key: "attention",   cls: "red",   label: "Needs Attention", count: counts.attention },
     { key: "former",      cls: "gray",  label: "Former",          count: counts.former },
+    { key: "notinterested", cls: "gray", label: "Not Interested", count: counts.notinterested },
   ];
 
   return (
@@ -481,6 +497,7 @@ export default function StudentsPage() {
                         <span className="cell-prog">
                           <span className={`ss-dot ${d.prog}`} />
                           {d.progName}
+                          {d.secondaryProgName && <span className="ss-meta" style={{ color: "var(--fg-tertiary)" }}> +{d.secondaryProgName}</span>}
                         </span>
                       </td>
                       <td>

@@ -13,9 +13,9 @@ import type {
 
 type AddParticipantForm = {
   nm: string;
-  birthYear: string;
+  dob: string;
   programId: string;
-  status: "active" | "prospective" | "authpending";
+  status: "active" | "prospective" | "authpending" | "inquiry";
   sc: string;
   guardianName: string;
   guardianPhone: string;
@@ -26,7 +26,7 @@ type AddParticipantForm = {
 };
 
 const EMPTY_FORM: AddParticipantForm = {
-  nm: "", birthYear: "", programId: "", status: "prospective", sc: "",
+  nm: "", dob: "", programId: "", status: "prospective", sc: "",
   guardianName: "", guardianPhone: "", guardianEmail: "", referralSource: "", tShirtSize: "", authExpiry: "",
 };
 
@@ -56,13 +56,13 @@ export default function AddParticipantModal({
   const canSubmit = form.nm.trim().length > 0 && form.programId !== "" && !saving;
 
   async function handleSubmit() {
-    const statusMap: Record<string, ParticipantStatus> = { active: "Active", prospective: "Prospective", authpending: "AuthPending" };
+    const statusMap: Record<string, ParticipantStatus> = { active: "Active", prospective: "Prospective", authpending: "AuthPending", inquiry: "Inquiry" };
     const dto: CreateParticipantDto = {
       fullName: form.nm.trim(),
       initials: toInitials(form.nm),
       programId: form.programId,
       status: statusMap[form.status] ?? "Prospective",
-      birthYear: form.birthYear ? parseInt(form.birthYear) : undefined,
+      dateOfBirth: form.dob || undefined,
       serviceCoordinator: form.sc.trim() || undefined,
       guardianName: form.guardianName.trim() || undefined,
       guardianPhone: form.guardianPhone.trim() || undefined,
@@ -116,8 +116,8 @@ export default function AddParticipantModal({
           </div>
 
           <div>
-            <div className="ss-label" style={{ marginBottom: 6 }}>Birth year <span style={{ fontSize: 11, color: "var(--fg-tertiary)", fontWeight: 400 }}>Optional</span></div>
-            <input type="number" min={1940} max={2015} placeholder="e.g. 1998" value={form.birthYear} onChange={(e) => setForm((f) => ({ ...f, birthYear: e.target.value }))} style={{ ...inputStyle, width: "40%" }} />
+            <div className="ss-label" style={{ marginBottom: 6 }}>Date of birth <span style={{ fontSize: 11, color: "var(--fg-tertiary)", fontWeight: 400 }}>Optional</span></div>
+            <input type="date" value={form.dob} onChange={(e) => setForm((f) => ({ ...f, dob: e.target.value }))} style={{ ...inputStyle, width: "55%" }} />
           </div>
 
           <div>
@@ -139,7 +139,7 @@ export default function AddParticipantModal({
           <div>
             <div className="ss-label" style={{ marginBottom: 8 }}>Status</div>
             <div style={{ display: "flex", gap: 6 }}>
-              {([["prospective", "Prospective"], ["active", "Active"], ["authpending", "Auth pending"]] as const).map(([s, label]) => (
+              {([["inquiry", "Inquiry"], ["prospective", "Prospective"], ["active", "Active"], ["authpending", "Auth pending"]] as const).map(([s, label]) => (
                 <button key={s} type="button" className={`ss-chip${form.status === s ? " is-active" : ""}`} style={{ cursor: "pointer" }} onClick={() => setForm((f) => ({ ...f, status: s }))}>
                   {label}
                 </button>

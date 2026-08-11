@@ -176,7 +176,7 @@ function StaffPageInner() {
     setTogglingIds((prev) => new Set(prev).add(item.id));
     setSaveError(null);
     try {
-      const updated = await staffApi.setOnboardingItem(staffId, item.id, !item.isCompleted);
+      const updated = await staffApi.setOnboardingItem(staffId, item.id, { isCompleted: !item.isCompleted });
       setDetailCache((prev) => ({ ...prev, [staffId]: updated }));
       // The summary list's progress % is served by the backend — refresh it.
       queryClient.invalidateQueries({ queryKey: queryKeys.staff, exact: true });
@@ -200,8 +200,8 @@ function StaffPageInner() {
   function handleExport() {
     const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
     const rows = [
-      ["Name", "Role", "Programs", "Start date", "End date", "Status", "Onboarding %"],
-      ...staffList.map((s) => [s.fullName, s.role, s.programNames.join("; "), s.startDate, s.endDate ?? "", s.isFormer ? "Former" : "Active", String(s.onboardingProgressPct)]),
+      ["Name", "Role", "Programs", "Start date", "End date", "Status", "T-shirt", "Onboarding %"],
+      ...staffList.map((s) => [s.fullName, s.role, s.programNames.join("; "), s.startDate, s.endDate ?? "", s.isFormer ? "Former" : "Active", s.tShirtSize ?? "", String(s.onboardingProgressPct)]),
     ];
     const blob = new Blob([rows.map((r) => r.map(esc).join(",")).join("\n")], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -219,6 +219,7 @@ function StaffPageInner() {
       role: form.role as StaffRole,
       startDate: form.startDate || undefined,
       programIds: form.programIds,
+      tShirtSize: form.tShirtSize || undefined,
     };
 
     setSaveError(null);
@@ -235,6 +236,26 @@ function StaffPageInner() {
       setSaveError(e instanceof ApiError && e.detail ? e.detail : "Couldn't add the staff member — try again.");
     }
     closeModal();
+  }
+
+  // Due/renewal dates for expiring items (CPR, TB, Mandated Reporter) — saved on change.
+  async function handleItemExpiry(staffId: string, item: OnboardingItemDto, iso: string) {
+    if (togglingIds.has(item.id)) return;
+    setTogglingIds((prev) => new Set(prev).add(item.id));
+    setSaveError(null);
+    try {
+      const updated = await staffApi.setOnboardingItem(staffId, item.id, {
+        isCompleted: item.isCompleted,
+        expiryDate: iso || undefined,
+        clearExpiry: !iso,
+      });
+      setDetailCache((prev) => ({ ...prev, [staffId]: updated }));
+      queryClient.invalidateQueries({ queryKey: queryKeys.staff, exact: true });
+    } catch (e) {
+      setSaveError(e instanceof ApiError && e.detail ? e.detail : "Couldn't update the due date — try again.");
+    } finally {
+      setTogglingIds((prev) => { const next = new Set(prev); next.delete(item.id); return next; });
+    }
   }
 
   async function handleSetFormer(s: StaffSummaryDto, makeFormer: boolean) {
@@ -401,7 +422,7 @@ function StaffPageInner() {
                         {s.fullName}
                         {newHire && <span className="newhire-tag">New hire</span>}
                       </div>
-                      <div className="sub">{s.role} · {progLabel} · {hireLabel}</div>
+                      <div className="sub">{s.role} · {progLabel} · {hireLabel}{s.tShirtSize ? ` · Shirt ${s.tShirtSize}` : ""}</div>
                     </div>
                     <div className="sacc-prog">
                       <div className="ss-progress">
@@ -437,13 +458,24 @@ function StaffPageInner() {
                                   {item.isCompleted && <Check />}
                                 </button>
                                 <span className="ss-checkrow-label">{item.label}</span>
-                                {item.expiryDate ? (
-                                  <span className="ss-date-expired" style={{ marginLeft: "auto" }}>
-                                    <AlertCircle />Exp {formatShort(item.expiryDate)}
-                                  </span>
-                                ) : item.completedDate ? (
-                                  <span className="ss-checkrow-date">{formatShort(item.completedDate)}</span>
-                                ) : null}
+                                <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 8 }}>
+                                  {item.expiryDate && (
+                                    <span className={parseLocalDate(item.expiryDate) < new Date() ? "ss-date-expired" : "ss-date-expiring"}>
+                                      <AlertCircle />Due {formatShort(item.expiryDate)}
+                                    </span>
+                                  )}
+                                  {!item.expiryDate && item.completedDate && (
+                                    <span className="ss-checkrow-date">{formatShort(item.completedDate)}</span>
+                                  )}
+                                  <input
+                                    type="date"
+                                    title="Due / renewal date"
+                                    value={item.expiryDate ?? ""}
+                                    disabled={togglingIds.has(item.id)}
+                                    onChange={(e) => handleItemExpiry(s.id, item, e.target.value)}
+                                    style={{ fontSize: 11, padding: "2px 4px", border: "0.5px solid var(--border)", borderRadius: "var(--r-sm)", background: "var(--surface)", color: "var(--fg-tertiary)", width: 118 }}
+                                  />
+                                </span>
                               </div>
                             ))}
                           </div>

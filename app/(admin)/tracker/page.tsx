@@ -51,7 +51,7 @@ export default function WeeklyDataPage() {
 
   // Bootstrap: programs, participants, taxonomy.
   const participants = useMemo(
-    () => allParticipants.filter((p) => p.programId === programId).sort((a, b) => a.fullName.localeCompare(b.fullName)),
+    () => allParticipants.filter((p) => p.programId === programId || p.secondaryProgramId === programId).sort((a, b) => a.fullName.localeCompare(b.fullName)),
     [allParticipants, programId]
   );
 
@@ -59,7 +59,7 @@ export default function WeeklyDataPage() {
   useEffect(() => {
     if (!programId) return;
     setLoading(true);
-    const roster = allParticipants.filter((p) => p.programId === programId);
+    const roster = allParticipants.filter((p) => p.programId === programId || p.secondaryProgramId === programId);
     Promise.all([
       progressApi.getFocusSkills(programId, month).catch(() => [] as WeeklyFocusSkillDto[]),
       Promise.all(roster.map((p) => progressApi.getStarMonth(p.id, month).catch(() => null))),
@@ -101,7 +101,9 @@ export default function WeeklyDataPage() {
     } catch { /* leave editor open */ } finally { setSavingFocus(false); }
   }
 
-  const sections = areas.filter((a) => a.subSkills.length > 0).sort((a, b) => a.sortOrder - b.sortOrder);
+  // The selected program decides which framework's sections show (Pathways vs part-time).
+  const selectedTrack = programs.find((p) => p.id === programId)?.slug === "pathways" ? "Pathways" : "PartTime";
+  const sections = areas.filter((a) => a.track === selectedTrack && a.subSkills.length > 0).sort((a, b) => a.sortOrder - b.sortOrder);
 
   return (
     <div className="adm-main">

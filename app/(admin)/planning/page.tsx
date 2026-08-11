@@ -37,7 +37,8 @@ export default function PlanningPage() {
   // Cached + shared via React Query (#34).
   const programs: ProgramSummaryDto[] = useMyPrograms().data ?? [];
   const staff: StaffSummaryDto[] = useStaff().data ?? [];
-  const areas: ObjectiveAreaDto[] = useObjectiveAreas().data ?? [];
+  // Per-star planning works against the part-time framework's areas.
+  const areas: ObjectiveAreaDto[] = (useObjectiveAreas().data ?? []).filter((a) => a.track === "PartTime");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);

@@ -6,6 +6,7 @@ import { progressApi, goalBankApi } from "@/lib/api/progress";
 import { taxonomyApi } from "@/lib/api/taxonomy";
 import type {
   ObjectiveAreaDto,
+  ProgramTrack,
   StarMonthDto,
   WeeklyDataEntryDto,
   MonthlyProgressSnapshotDto,
@@ -51,6 +52,15 @@ const LEVELS: { value: ProgressLevel; label: string }[] = [
   { value: "NotApplicable", label: "N/A" },
 ];
 
+// Pathways adds a fourth developmental level beyond Expert.
+const PATHWAYS_LEVELS: { value: ProgressLevel; label: string }[] = [
+  { value: "Novice", label: "Novice" },
+  { value: "Intermediate", label: "Intermediate" },
+  { value: "Expert", label: "Expert" },
+  { value: "Vocational", label: "Vocational" },
+  { value: "NotApplicable", label: "N/A" },
+];
+
 function levelLabel(l: ProgressLevel): string {
   return l === "NotApplicable" ? "N/A" : l;
 }
@@ -61,7 +71,9 @@ const cellSelect: React.CSSProperties = {
   outline: "none", width: 48,
 };
 
-export default function TrackerWidget({ participantId }: { participantId: string }) {
+export default function TrackerWidget({ participantId, tracks = ["PartTime"] }: { participantId: string; tracks?: ProgramTrack[] }) {
+  const [track, setTrack] = useState<ProgramTrack>(tracks[0] ?? "PartTime");
+  const levels = track === "Pathways" ? PATHWAYS_LEVELS : LEVELS;
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [areas, setAreas] = useState<ObjectiveAreaDto[]>([]);
   const [data, setData] = useState<StarMonthDto | null>(null);
@@ -97,8 +109,8 @@ export default function TrackerWidget({ participantId }: { participantId: string
   }, [data]);
 
   const sections = useMemo(
-    () => areas.filter((a) => a.subSkills.length > 0).sort((a, b) => a.sortOrder - b.sortOrder),
-    [areas]
+    () => areas.filter((a) => a.track === track && a.subSkills.length > 0).sort((a, b) => a.sortOrder - b.sortOrder),
+    [areas, track]
   );
 
   const noteMap = useMemo(() => {
@@ -153,6 +165,11 @@ export default function TrackerWidget({ participantId }: { participantId: string
         <ClipboardList className="ico" style={{ color: "var(--primary)" }} />
         <h3>Weekly tracker</h3>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+          {tracks.length > 1 && tracks.map((t) => (
+            <button key={t} type="button" className={`ss-chip${track === t ? " is-active" : ""}`} style={{ cursor: "pointer" }} onClick={() => setTrack(t)}>
+              {t === "Pathways" ? "Pathways" : "Part-time"}
+            </button>
+          ))}
           <input
             type="month"
             value={month}
@@ -262,7 +279,7 @@ export default function TrackerWidget({ participantId }: { participantId: string
                 <div>
                   <div className="ss-label" style={{ marginBottom: 6 }}>Primary level for the month</div>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    {LEVELS.map((l) => (
+                    {levels.map((l) => (
                       <button key={l.value} type="button" className={`ss-chip${summaryForm.primaryLevel === l.value ? " is-active" : ""}`} style={{ cursor: "pointer" }}
                         onClick={() => setSummaryForm((f) => ({ ...f, primaryLevel: l.value }))}>{l.label}</button>
                     ))}
@@ -305,6 +322,7 @@ function FragmentSection({
   onScore: (subSkillId: string, week: number, score: DataScore) => void;
   onConfirm: (subSkillId: string, level: ProgressLevel) => void;
 }) {
+  const rowLevels = area.track === "Pathways" ? PATHWAYS_LEVELS : LEVELS;
   return (
     <>
       <tr>
@@ -313,6 +331,12 @@ function FragmentSection({
             <span style={{ width: 8, height: 8, borderRadius: "50%", background: area.colorHex }} />
             {area.name}
           </span>
+          {area.annualGoal && (
+            <div style={{ textTransform: "none", letterSpacing: 0, fontWeight: 400, fontSize: 11, color: "var(--fg-tertiary)", marginTop: 3, lineHeight: 1.45, maxWidth: 720 }}>
+              <strong>Annual goal:</strong> {area.annualGoal}
+              {area.sixMonthBenchmark && <> · <strong>6-month benchmark:</strong> {area.sixMonthBenchmark}</>}
+            </div>
+          )}
         </td>
       </tr>
       {[...area.subSkills].sort((a, b) => a.sortOrder - b.sortOrder).map((s) => {
@@ -344,7 +368,7 @@ function FragmentSection({
                   style={{ border: "0.5px solid var(--border-hover)", borderRadius: "var(--r-sm)", padding: "3px 6px", fontSize: 12, color: "var(--fg)", background: "var(--surface)", outline: "none" }}
                 >
                   <option value="">Set…</option>
-                  {LEVELS.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
+                  {rowLevels.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
                 </select>
                 {snap?.isConfirmed ? (
                   <span title="Confirmed" style={{ display: "inline-flex", alignItems: "center", color: "var(--success)" }}><Check style={{ width: 13, height: 13 }} /></span>

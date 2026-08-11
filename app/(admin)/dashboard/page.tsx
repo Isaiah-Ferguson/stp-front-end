@@ -50,8 +50,10 @@ const STATUS_BADGE: Record<ParticipantStatus, { type: string; text: string }> = 
   Attention:   { type: "attention",   text: "Needs attention" },
   Former:      { type: "info",        text: "Former" },
   AuthPending: { type: "prospective", text: "Auth pending" },
+  Inquiry:     { type: "prospective", text: "Inquiry" },
+  NotInterested: { type: "info",      text: "Not interested" },
 };
-const STATUS_ORDER: Record<ParticipantStatus, number> = { Attention: 0, AuthPending: 1, Prospective: 2, Active: 3, Former: 4 };
+const STATUS_ORDER: Record<ParticipantStatus, number> = { Attention: 0, AuthPending: 1, Prospective: 2, Inquiry: 3, Active: 4, Former: 5, NotInterested: 6 };
 
 function EmptyRow({ text }: { text: string }) {
   return <div style={{ padding: "18px 0", textAlign: "center", fontSize: 13, color: "var(--fg-tertiary)" }}>{text}</div>;
@@ -115,21 +117,23 @@ export default function DashboardPage() {
         href: `/students/${p.id}`,
       }));
 
-    // Authorizations expiring within a month (or already expired) — in-app notification.
+    // POS authorizations and IPPs expiring within a month (or already expired) — in-app notification.
     for (const p of participants) {
       if (items.length >= 5) break;
-      if (!p.authorizationExpiry) continue;
-      const days = Math.ceil((parseDate(p.authorizationExpiry).getTime() - Date.now()) / 86_400_000);
-      if (days > 31) continue;
-      items.push({
-        severity: days < 0 ? "danger" : "warning",
-        txt: days < 0
-          ? `${p.fullName} — authorization expired`
-          : `${p.fullName} — authorization expires in ${days} day${days === 1 ? "" : "s"}`,
-        sub: `${p.programName} · renew authorization`,
-        act: "Review",
-        href: `/students/${p.id}`,
-      });
+      for (const [iso, label] of [[p.authorizationExpiry, "POS authorization"], [p.ippExpiry, "IPP"]] as const) {
+        if (!iso || items.length >= 5) continue;
+        const days = Math.ceil((parseDate(iso).getTime() - Date.now()) / 86_400_000);
+        if (days > 31) continue;
+        items.push({
+          severity: days < 0 ? "danger" : "warning",
+          txt: days < 0
+            ? `${p.fullName} — ${label} expired`
+            : `${p.fullName} — ${label} expires in ${days} day${days === 1 ? "" : "s"}`,
+          sub: `${p.programName} · renew ${label}`,
+          act: "Review",
+          href: `/students/${p.id}`,
+        });
+      }
     }
 
     // Pathways 6/12-month reports coming due within a month.

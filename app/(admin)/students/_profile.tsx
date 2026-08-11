@@ -37,7 +37,7 @@ import type {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const STATUSES: ParticipantStatus[] = ["Active", "Prospective", "AuthPending", "Attention", "Former"];
+const STATUSES: ParticipantStatus[] = ["Active", "Inquiry", "Prospective", "AuthPending", "Attention", "Former", "NotInterested"];
 
 const STATUS_BADGE: Record<ParticipantStatus, { cls: string; icon: LucideIcon; label: string }> = {
   Active:      { cls: "is-active",      icon: CheckCircle2, label: "Active" },
@@ -45,6 +45,8 @@ const STATUS_BADGE: Record<ParticipantStatus, { cls: string; icon: LucideIcon; l
   Attention:   { cls: "is-attention",   icon: AlertCircle,  label: "Needs attention" },
   Former:      { cls: "is-former",      icon: MinusCircle,  label: "Former" },
   AuthPending: { cls: "is-authpending", icon: ShieldAlert,  label: "Auth pending" },
+  Inquiry:     { cls: "is-inquiry",     icon: Clock,        label: "Inquiry" },
+  NotInterested: { cls: "is-notinterested", icon: MinusCircle, label: "Not interested" },
 };
 
 const T_SHIRT_SIZES = ["YS", "YM", "YL", "S", "M", "L", "XL", "2XL"];
@@ -78,6 +80,9 @@ type Form = {
   fullName: string; status: ParticipantStatus; programId: string; birthYear: string; sc: string;
   guardianName: string; guardianPhone: string; guardianEmail: string;
   referralSource: string; tShirtSize: string; authExpiry: string; intakeNotes: string;
+  ippExpiry: string; dob: string; allergies: string; anaphylactic: boolean;
+  areasOfConcern: string; scEmail: string; scPhone: string; remind: string;
+  intakeDocs: boolean; diploma: "" | "yes" | "no"; secondaryProgramId: string;
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -95,6 +100,8 @@ export default function ParticipantProfile({ id }: { id: string }) {
   const [form, setForm] = useState<Form>({
     fullName: "", status: "Active", programId: "", birthYear: "", sc: "",
     guardianName: "", guardianPhone: "", guardianEmail: "", referralSource: "", tShirtSize: "", authExpiry: "", intakeNotes: "",
+    ippExpiry: "", dob: "", allergies: "", anaphylactic: false,
+    areasOfConcern: "", scEmail: "", scPhone: "", remind: "", intakeDocs: false, diploma: "", secondaryProgramId: "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -129,6 +136,17 @@ export default function ParticipantProfile({ id }: { id: string }) {
       tShirtSize: d.tShirtSize ?? "",
       authExpiry: d.authorizationExpiry ?? "",
       intakeNotes: d.intakeNotes ?? "",
+      ippExpiry: d.ippExpiry ?? "",
+      dob: d.dateOfBirth ?? "",
+      allergies: d.allergies ?? "",
+      anaphylactic: d.allergyAnaphylactic,
+      areasOfConcern: d.areasOfConcern ?? "",
+      scEmail: d.serviceCoordinatorEmail ?? "",
+      scPhone: d.serviceCoordinatorPhone ?? "",
+      remind: d.contactInRemind ?? "",
+      intakeDocs: d.intakeDocsSubmitted,
+      diploma: d.hasHighSchoolDiploma === null ? "" : d.hasHighSchoolDiploma ? "yes" : "no",
+      secondaryProgramId: d.secondaryProgramId ?? "",
     };
   }
 
@@ -156,6 +174,19 @@ export default function ParticipantProfile({ id }: { id: string }) {
       intakeNotes: form.intakeNotes.trim(),
       authorizationExpiry: form.authExpiry || undefined,
       clearAuthorizationExpiry: !form.authExpiry,
+      ippExpiry: form.ippExpiry || undefined,
+      clearIppExpiry: !form.ippExpiry,
+      dateOfBirth: form.dob || undefined,
+      allergies: form.allergies.trim(),
+      allergyAnaphylactic: form.anaphylactic,
+      areasOfConcern: form.areasOfConcern.trim(),
+      serviceCoordinatorEmail: form.scEmail.trim(),
+      serviceCoordinatorPhone: form.scPhone.trim(),
+      contactInRemind: form.remind.trim(),
+      intakeDocsSubmitted: form.intakeDocs,
+      hasHighSchoolDiploma: form.diploma === "" ? undefined : form.diploma === "yes",
+      secondaryProgramId: form.secondaryProgramId || undefined,
+      clearSecondaryProgram: !form.secondaryProgramId,
     };
     try {
       const updated = await participantsApi.update(id, dto);
@@ -333,9 +364,31 @@ export default function ParticipantProfile({ id }: { id: string }) {
               )}
 
               {field(
-                "Birth year",
-                detail.birthYear ?? "—",
-                <input type="number" min={1940} max={2020} value={form.birthYear} placeholder="e.g. 1998" onChange={(e) => setForm((f) => ({ ...f, birthYear: e.target.value }))} style={{ ...inputStyle, width: "60%" }} />
+                "Date of birth",
+                detail.dateOfBirth ? fmtDate(detail.dateOfBirth) : detail.birthYear ? `b. ${detail.birthYear}` : "—",
+                <input type="date" value={form.dob} onChange={(e) => setForm((f) => ({ ...f, dob: e.target.value }))} style={inputStyle} />
+              )}
+
+              {field(
+                "Also enrolled in",
+                detail.secondaryProgramName
+                  ? <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span className={`ss-dot ${detail.secondaryProgramSlug}`} />{detail.secondaryProgramName}</span>
+                  : "—",
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <button type="button" className={`ss-chip${form.secondaryProgramId === "" ? " is-active" : ""}`} style={{ cursor: "pointer" }} onClick={() => setForm((f) => ({ ...f, secondaryProgramId: "" }))}>None</button>
+                  {programs.filter((p) => p.id !== form.programId).map((p) => {
+                    const sel = form.secondaryProgramId === p.id;
+                    return (
+                      <button key={p.id} type="button" onClick={() => setForm((f) => ({ ...f, secondaryProgramId: sel ? "" : p.id }))}
+                        style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: "var(--r-pill)", cursor: "pointer", fontSize: 13,
+                          border: `0.5px solid ${sel ? `var(--${p.slug}-border)` : "var(--border)"}`,
+                          background: sel ? `var(--${p.slug}-fill)` : "var(--surface)",
+                          color: sel ? `var(--${p.slug})` : "var(--fg-secondary)" }}>
+                        <span className={`ss-dot ${p.slug}`} />{p.name}
+                      </button>
+                    );
+                  })}
+                </div>
               )}
 
               {field(
@@ -416,9 +469,70 @@ export default function ParticipantProfile({ id }: { id: string }) {
               )}
 
               {field(
-                "Authorization expires",
+                "POS / Authorization expires",
                 authExpiryView(detail.authorizationExpiry),
                 <input type="date" value={form.authExpiry} onChange={(e) => setForm((f) => ({ ...f, authExpiry: e.target.value }))} style={inputStyle} />
+              )}
+
+              {field(
+                "IPP expires",
+                authExpiryView(detail.ippExpiry),
+                <input type="date" value={form.ippExpiry} onChange={(e) => setForm((f) => ({ ...f, ippExpiry: e.target.value }))} style={inputStyle} />
+              )}
+
+              {field(
+                "Allergies",
+                detail.allergies ? <span>{detail.allergies}{detail.allergyAnaphylactic && <span className="ss-badge is-attention" style={{ marginLeft: 6 }}><AlertTriangle />Anaphylactic</span>}</span> : "—",
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <input type="text" value={form.allergies} placeholder="e.g. Wheat & gluten" onChange={(e) => setForm((f) => ({ ...f, allergies: e.target.value }))} style={inputStyle} />
+                  <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--fg-secondary)", cursor: "pointer" }}>
+                    <input type="checkbox" checked={form.anaphylactic} onChange={(e) => setForm((f) => ({ ...f, anaphylactic: e.target.checked }))} />
+                    Anaphylactic
+                  </label>
+                </div>
+              )}
+
+              {field(
+                "Areas of concern",
+                detail.areasOfConcern || "—",
+                <input type="text" value={form.areasOfConcern} placeholder="e.g. Sensitive - fire alarm" onChange={(e) => setForm((f) => ({ ...f, areasOfConcern: e.target.value }))} style={inputStyle} />
+              )}
+
+              {field(
+                "SC email",
+                detail.serviceCoordinatorEmail || "—",
+                <input type="email" value={form.scEmail} placeholder="name@vmrc.net" onChange={(e) => setForm((f) => ({ ...f, scEmail: e.target.value }))} style={inputStyle} />
+              )}
+
+              {field(
+                "SC phone",
+                detail.serviceCoordinatorPhone || "—",
+                <input type="tel" value={form.scPhone} placeholder="(209) 555-0100" onChange={(e) => setForm((f) => ({ ...f, scPhone: e.target.value }))} style={inputStyle} />
+              )}
+
+              {field(
+                "Contact in Remind",
+                detail.contactInRemind || "—",
+                <input type="text" value={form.remind} placeholder="Who's set up, and when" onChange={(e) => setForm((f) => ({ ...f, remind: e.target.value }))} style={inputStyle} />
+              )}
+
+              {field(
+                "Intake docs submitted",
+                detail.intakeDocsSubmitted ? <span className="ss-badge is-active"><CheckCircle2 />Yes</span> : <span className="ss-badge is-attention"><AlertCircle />No</span>,
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button type="button" className={`ss-chip${form.intakeDocs ? " is-active" : ""}`} style={{ cursor: "pointer" }} onClick={() => setForm((f) => ({ ...f, intakeDocs: true }))}>Yes</button>
+                  <button type="button" className={`ss-chip${!form.intakeDocs ? " is-active" : ""}`} style={{ cursor: "pointer" }} onClick={() => setForm((f) => ({ ...f, intakeDocs: false }))}>No</button>
+                </div>
+              )}
+
+              {field(
+                "High school diploma",
+                detail.hasHighSchoolDiploma === null ? "—" : detail.hasHighSchoolDiploma ? "Yes" : "No",
+                <select value={form.diploma} onChange={(e) => setForm((f) => ({ ...f, diploma: e.target.value as Form["diploma"] }))} style={{ ...inputStyle, width: "60%" }}>
+                  <option value="">Not recorded</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
               )}
 
               <div style={{ gridColumn: "1 / -1" }}>
@@ -434,8 +548,15 @@ export default function ParticipantProfile({ id }: { id: string }) {
           {/* arts profile (Student Frame) */}
           <ArtsProfileWidget participantId={id} />
 
-          {/* weekly tracker (monthly data + month-end levels) */}
-          <TrackerWidget participantId={id} />
+          {/* weekly tracker (monthly data + month-end levels) — framework follows enrollment */}
+          <TrackerWidget
+            participantId={id}
+            tracks={[...new Set(
+              [detail.programSlug, detail.secondaryProgramSlug]
+                .filter((s): s is string => !!s)
+                .map((s) => (s === "pathways" ? "Pathways" : "PartTime") as import("@/lib/types/api").ProgramTrack)
+            )]}
+          />
 
           {/* documents (read-only) */}
           <div className="widget">

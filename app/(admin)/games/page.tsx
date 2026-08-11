@@ -40,7 +40,8 @@ function tierList(tiers: string): string[] {
 
 export default function GamesLibraryPage() {
   // Cached + shared via React Query (#34).
-  const areas: ObjectiveAreaDto[] = useObjectiveAreas().data ?? [];
+  // Curriculum activities are tagged against the part-time framework only.
+  const areas: ObjectiveAreaDto[] = (useObjectiveAreas().data ?? []).filter((a) => a.track === "PartTime");
   const programs: ProgramSummaryDto[] = usePrograms().data ?? [];
   const [games, setGames] = useState<GameSummaryDto[]>([]);
   const [loading, setLoading] = useState(true);

@@ -4,7 +4,7 @@ export type Guid = string;
 
 // ── Enums (mirror backend) ────────────────────────────────────────────────────
 
-export type ParticipantStatus = "Active" | "Prospective" | "Attention" | "Former" | "AuthPending";
+export type ParticipantStatus = "Active" | "Prospective" | "Attention" | "Former" | "AuthPending" | "Inquiry" | "NotInterested";
 export type StaffRole = "Teacher" | "Coordinator" | "Admin";
 export type AttendanceStatus = "Present" | "Absent" | "Unmarked";
 export type TaskStatus = "Upcoming" | "InProgress" | "Done" | "Overdue" | "Blocked";
@@ -14,7 +14,8 @@ export type ScriptStatus = "Active" | "Draft" | "Archived";
 export type ProjectType = "Production" | "Staff" | "Admin" | "Event";
 export type AlertSeverity = "Danger" | "Warning" | "Info";
 export type UserRole = "Staff" | "Admin";
-export type ProgressLevel = "Novice" | "Intermediate" | "Expert" | "NotApplicable";
+export type ProgressLevel = "Novice" | "Intermediate" | "Expert" | "NotApplicable" | "Vocational";
+export type ProgramTrack = "PartTime" | "Pathways";
 export type DataScore = "Refusal" | "FullPrompts" | "MinimalPrompts" | "Independent" | "NotApplicable";
 export type GoalBankKind = "Strength" | "AreaForImprovement" | "NewGoal";
 export type GameSource = "TSSP" | "Suggested";
@@ -157,6 +158,21 @@ export interface ParticipantSummaryDto {
   intakeNotes: string | null;
   /** yyyy-MM-dd, null when not set. */
   authorizationExpiry: string | null;
+  /** yyyy-MM-dd, null when not set. */
+  ippExpiry: string | null;
+  /** yyyy-MM-dd, null when not set. */
+  dateOfBirth: string | null;
+  allergies: string | null;
+  allergyAnaphylactic: boolean;
+  areasOfConcern: string | null;
+  serviceCoordinatorEmail: string | null;
+  serviceCoordinatorPhone: string | null;
+  contactInRemind: string | null;
+  intakeDocsSubmitted: boolean;
+  hasHighSchoolDiploma: boolean | null;
+  secondaryProgramId: Guid | null;
+  secondaryProgramName: string | null;
+  secondaryProgramSlug: string | null;
 }
 
 export interface ParticipantDetailDto extends ParticipantSummaryDto {
@@ -408,6 +424,17 @@ export interface CreateParticipantDto {
   tShirtSize?: string;
   intakeNotes?: string;
   authorizationExpiry?: string;
+  ippExpiry?: string;
+  dateOfBirth?: string;
+  allergies?: string;
+  allergyAnaphylactic?: boolean;
+  areasOfConcern?: string;
+  serviceCoordinatorEmail?: string;
+  serviceCoordinatorPhone?: string;
+  contactInRemind?: string;
+  intakeDocsSubmitted?: boolean;
+  hasHighSchoolDiploma?: boolean;
+  secondaryProgramId?: Guid;
 }
 
 export interface UpdateParticipantDto {
@@ -426,6 +453,20 @@ export interface UpdateParticipantDto {
   authorizationExpiry?: string;
   /** True clears the stored expiry (null alone means "unchanged"). */
   clearAuthorizationExpiry?: boolean;
+  ippExpiry?: string;
+  clearIppExpiry?: boolean;
+  dateOfBirth?: string;
+  allergies?: string;
+  allergyAnaphylactic?: boolean;
+  areasOfConcern?: string;
+  serviceCoordinatorEmail?: string;
+  serviceCoordinatorPhone?: string;
+  contactInRemind?: string;
+  intakeDocsSubmitted?: boolean;
+  hasHighSchoolDiploma?: boolean;
+  secondaryProgramId?: Guid;
+  /** True removes the secondary enrollment (null alone means "unchanged"). */
+  clearSecondaryProgram?: boolean;
 }
 
 // ── Staff ─────────────────────────────────────────────────────────────────────
@@ -439,6 +480,7 @@ export interface StaffSummaryDto {
   /** yyyy-MM-dd; non-null marks the member as former. */
   endDate: string | null;
   isFormer: boolean;
+  tShirtSize: string | null;
   onboardingProgressPct: number;
   programNames: string[];
 }
@@ -453,6 +495,7 @@ export interface CreateStaffDto {
   role: StaffRole;
   startDate?: string;
   programIds?: Guid[];
+  tShirtSize?: string;
 }
 
 export interface ChecklistTemplateItemDto {
@@ -466,6 +509,10 @@ export interface UpdateChecklistTemplateDto {
 
 export interface SetOnboardingItemDto {
   isCompleted: boolean;
+  /** Due/renewal date for expiring items (CPR, TB, Mandated Reporter…). */
+  expiryDate?: string;
+  /** True clears the stored expiry (null alone means "unchanged"). */
+  clearExpiry?: boolean;
 }
 
 export interface UpdateStaffDto {
@@ -476,6 +523,7 @@ export interface UpdateStaffDto {
   endDate?: string;
   /** True clears the end date, restoring the member to active. */
   clearEndDate?: boolean;
+  tShirtSize?: string;
 }
 
 // ── Attendance ────────────────────────────────────────────────────────────────
@@ -841,6 +889,10 @@ export interface ObjectiveAreaDto {
   slug: string;
   colorHex: string;
   sortOrder: number;
+  /** Which progress framework the area belongs to. */
+  track: ProgramTrack;
+  annualGoal: string | null;
+  sixMonthBenchmark: string | null;
   subSkills: SubSkillDto[];
 }
 
