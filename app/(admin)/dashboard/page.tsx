@@ -26,6 +26,7 @@ import { Skeleton, SkeletonList } from "../components/Skeleton";
 import BarChart from "../components/BarChart";
 import AddParticipantModal from "../components/AddParticipantModal";
 import { useDashboard, queryKeys } from "@/lib/api/hooks";
+import { useAuth } from "@/lib/auth/AuthProvider";
 import { nextPathwaysReportDue } from "@/lib/pathwaysReports";
 import { tasksApi } from "@/lib/api/tasks";
 import LoadError from "@/app/components/LoadError";
@@ -66,6 +67,7 @@ export default function DashboardPage() {
   // rendering as fake empty stats (#35).
   const dashboard = useDashboard();
   const queryClient = useQueryClient();
+  const { isAdmin } = useAuth();
   const loading = dashboard.isPending;
   const [addOpen, setAddOpen] = useState(false);
   const [completingId, setCompletingId] = useState<string | null>(null);
@@ -394,9 +396,12 @@ export default function DashboardPage() {
             )}
           </Widget>
 
-          <Widget id="onboard-heading" title="Staff Onboarding" icon={<UserCheck className="ico ico--primary" />}>
-            {loading ? <SkeletonList rows={3} /> : staffItems.length ? <StaffList items={staffItems} /> : <EmptyRow text="No staff yet" />}
-          </Widget>
+          {/* Onboarding completion is admin-only (client rule). */}
+          {isAdmin && (
+            <Widget id="onboard-heading" title="Staff Onboarding" icon={<UserCheck className="ico ico--primary" />}>
+              {loading ? <SkeletonList rows={3} /> : staffItems.length ? <StaffList items={staffItems} /> : <EmptyRow text="No staff yet" />}
+            </Widget>
+          )}
         </div>
 
         {/* attendance today by program */}
