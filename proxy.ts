@@ -32,12 +32,32 @@ const ADMIN_ONLY_PREFIXES = [
   "/reports",
   "/cohort-rollup",
   "/settings",
+  "/audit",
 ];
+
+// WHY MFA ENROLLMENT IS NOT GATED HERE, even though role gating is.
+//
+// The obvious move is to read the JWT's `mfa` claim below and bounce unenrolled users to
+// /account. It is wrong twice over. First, the claim is fixed when the token is minted and
+// stays true for up to an hour after an admin resets someone's second factor — which is the
+// exact scenario the reset exists for, and the reason MfaEnforcementFilter reads the database
+// instead of the claim. Second, and worse: nothing at the edge can see Mfa:Required. If that
+// setting is off, an unenrolled user is perfectly entitled to use the app, and a redirect
+// here would strand them on the account page with no way out and no error to explain it —
+// a redirect cannot be dismissed the way a failed request can be recovered from.
+//
+// So enrollment routing lives in AuthGuard, which reacts to the backend actually refusing a
+// request (403 + code "mfa_enrollment_required"). That is ground truth rather than a guess,
+// and the server is refusing the data either way.
 
 export function proxy(request: NextRequest) {
   const hasSession =
     request.cookies.has(ACCESS_COOKIE) || request.cookies.has(REFRESH_COOKIE);
 
+  // A browser part-way through the two-step sign-in holds only the ss_mfa challenge cookie,
+  // which is not a session and grants nothing. It lands here and is sent back to "/", where
+  // the code step is waiting — correct, and the reason this check names the two auth cookies
+  // explicitly rather than asking whether any auth-ish cookie is present.
   if (!hasSession) {
     return NextResponse.redirect(new URL("/", request.url));
   }
@@ -74,6 +94,7 @@ export const config = {
     "/tasks/:path*",
     "/documents/:path*",
     "/reports/:path*",
+    "/audit/:path*",
     "/settings/:path*",
     "/users/:path*",
     "/account/:path*",

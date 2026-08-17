@@ -11,6 +11,7 @@ import {
   Pencil,
   KeyRound,
   Trash2,
+  ShieldOff,
 } from "lucide-react";
 import { useUsers, useStaff, queryKeys } from "@/lib/api/hooks";
 import LoadError from "@/app/components/LoadError";
@@ -25,6 +26,7 @@ import {
   CreateUserModal,
   EditUserModal,
   ResetPasswordModal,
+  ResetMfaModal,
   DeleteUserModal,
   iconBtnStyle,
 } from "./_modals";
@@ -45,6 +47,7 @@ export default function UsersPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<UserDto | null>(null);
   const [resetting, setResetting] = useState<UserDto | null>(null);
+  const [resettingMfa, setResettingMfa] = useState<UserDto | null>(null);
   const [deleting, setDeleting] = useState<UserDto | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -64,6 +67,9 @@ export default function UsersPage() {
   }
 
   const adminCount = users.filter((u) => u.role === "Admin").length;
+  // Worth surfacing in the subtitle: while mandatory MFA is on, an unenrolled account is one
+  // that cannot actually use the CRM yet.
+  const unenrolledCount = users.filter((u) => !u.mfaEnabled).length;
 
   return (
     <>
@@ -71,7 +77,10 @@ export default function UsersPage() {
         <div className="adm-topbar">
           <div className="titles">
             <h1>Users</h1>
-            <span className="date">{users.length} account{users.length === 1 ? "" : "s"} · {adminCount} admin{adminCount === 1 ? "" : "s"}</span>
+            <span className="date">
+              {users.length} account{users.length === 1 ? "" : "s"} · {adminCount} admin{adminCount === 1 ? "" : "s"}
+              {unenrolledCount > 0 && ` · ${unenrolledCount} without two-factor`}
+            </span>
           </div>
           <div className="right">
             <button className="ss-btn ss-btn-primary" type="button" onClick={() => setModalOpen(true)}>
@@ -100,19 +109,20 @@ export default function UsersPage() {
                     <th>Email</th>
                     <th>Role</th>
                     <th>Status</th>
-                    <th style={{ width: 120, textAlign: "right" }}>Actions</th>
+                    <th>Two-factor</th>
+                    <th style={{ width: 150, textAlign: "right" }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={5} style={{ textAlign: "center", padding: "32px 0", color: "var(--fg-tertiary)", fontSize: 13 }}>
+                      <td colSpan={6} style={{ textAlign: "center", padding: "32px 0", color: "var(--fg-tertiary)", fontSize: 13 }}>
                         Loading users…
                       </td>
                     </tr>
                   ) : usersQ.isError ? (
                     <tr>
-                      <td colSpan={5}>
+                      <td colSpan={6}>
                         <LoadError
                           title="Couldn't load users"
                           error={usersQ.error}
@@ -122,7 +132,7 @@ export default function UsersPage() {
                     </tr>
                   ) : users.length === 0 ? (
                     <tr>
-                      <td colSpan={5} style={{ textAlign: "center", padding: "40px 0", color: "var(--fg-tertiary)", fontSize: 13 }}>
+                      <td colSpan={6} style={{ textAlign: "center", padding: "40px 0", color: "var(--fg-tertiary)", fontSize: 13 }}>
                         No users yet — create one to get started.
                       </td>
                     </tr>
@@ -158,6 +168,13 @@ export default function UsersPage() {
                           )}
                         </td>
                         <td>
+                          {u.mfaEnabled ? (
+                            <span className="ss-badge is-active"><ShieldCheck />On</span>
+                          ) : (
+                            <span className="ss-badge is-attention">Not set up</span>
+                          )}
+                        </td>
+                        <td>
                           <div style={{ display: "flex", gap: 2, justifyContent: "flex-end" }}>
                             <button type="button" className="ss-icon-btn" title="Edit user"
                               onClick={() => setEditing(u)} style={iconBtnStyle}>
@@ -166,6 +183,14 @@ export default function UsersPage() {
                             <button type="button" className="ss-icon-btn" title="Reset password"
                               onClick={() => setResetting(u)} style={iconBtnStyle}>
                               <KeyRound style={{ width: 15, height: 15 }} />
+                            </button>
+                            {/* Only offered where there is something to clear — on an account with
+                                no authenticator the endpoint succeeds and changes nothing. */}
+                            <button type="button" className="ss-icon-btn"
+                              title={u.mfaEnabled ? "Reset two-factor authentication" : "No authenticator to reset"}
+                              onClick={() => setResettingMfa(u)} disabled={!u.mfaEnabled}
+                              style={{ ...iconBtnStyle, opacity: u.mfaEnabled ? 1 : 0.4, cursor: u.mfaEnabled ? "pointer" : "not-allowed" }}>
+                              <ShieldOff style={{ width: 15, height: 15 }} />
                             </button>
                             <button type="button" className="ss-icon-btn" title={isMe ? "You can't delete your own account" : "Delete user"}
                               onClick={() => setDeleting(u)} disabled={isMe}
@@ -219,6 +244,20 @@ export default function UsersPage() {
           onDone={() => {
             setNotice(`Password reset for ${resetting.fullName}.`);
             setResetting(null);
+          }}
+        />
+      )}
+
+      {resettingMfa && (
+        <ResetMfaModal
+          target={resettingMfa}
+          isSelf={currentUser?.id === resettingMfa.id}
+          onClose={() => setResettingMfa(null)}
+          onReset={() => {
+            // The list carries mfaEnabled, so it has to be refetched for the badge to flip.
+            refreshUsers();
+            setNotice(`Two-factor authentication reset for ${resettingMfa.fullName}. They must set up a new authenticator app before they can sign in.`);
+            setResettingMfa(null);
           }}
         />
       )}

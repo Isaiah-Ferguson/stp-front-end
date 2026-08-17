@@ -17,6 +17,7 @@ import {
   Pencil,
 } from "lucide-react";
 import { staffApi } from "@/lib/api/staff";
+import { auditApi } from "@/lib/api/audit";
 import { useStaff, usePrograms, useChecklistTemplate, queryKeys } from "@/lib/api/hooks";
 import LoadError from "@/app/components/LoadError";
 import { ApiError } from "@/lib/api/client";
@@ -39,6 +40,9 @@ import type {
 } from "@/lib/types/api";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Shared by the download and the audit report, so the two can never disagree. */
+const STAFF_CSV_FILENAME = "staff-onboarding.csv";
 
 function toInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -149,6 +153,7 @@ function StaffPageInner() {
   const [form, setForm] = useState<AddStaffForm>(EMPTY_STAFF_FORM);
   const [templateOpen, setTemplateOpen] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [auditWarning, setAuditWarning] = useState<string | null>(null);
   const [filter, setFilter] = useState<StaffFilter>("all");
   // Active vs former staff — former members keep their checklist history.
   const [view, setView] = useState<"active" | "former">("active");
@@ -197,7 +202,8 @@ function StaffPageInner() {
     }
   }
 
-  function handleExport() {
+  /** Builds and downloads the CSV. Returns the number of DATA rows, for the audit report. */
+  function buildExport(): number {
     const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
     const rows = [
       ["Name", "Role", "Programs", "Start date", "End date", "Status", "T-shirt", "Onboarding %"],
@@ -207,9 +213,39 @@ function StaffPageInner() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "staff-onboarding.csv";
+    a.download = STAFF_CSV_FILENAME;
     a.click();
     URL.revokeObjectURL(url);
+    return rows.length - 1;
+  }
+
+  /**
+   * Download, then report it. The CSV is built here from rows the page already holds, so the
+   * server never sees the file and this call is the only record of what was in it — the backend
+   * has reserved the "staff-onboarding" export kind since the audit work landed and had never
+   * received one.
+   *
+   * Same ordering and failure handling as the Reports and Stars pages: save first (the fetch
+   * was the disclosure, not the download), and surface a non-blocking banner if the report
+   * fails, so an unrecorded export does not look identical to one that never happened.
+   */
+  async function handleExport() {
+    const rowCount = buildExport();
+    try {
+      await auditApi.recordExport({
+        exportKind: "staff-onboarding",
+        rowCount,
+        fileName: STAFF_CSV_FILENAME,
+        // Which view was exported, never a staff member's name — this lands verbatim in audit
+        // metadata.
+        scope: `${view} staff · ${filter}`,
+      });
+      setAuditWarning(null);
+    } catch {
+      setAuditWarning(
+        `“${STAFF_CSV_FILENAME}” (${rowCount} staff) downloaded, but it could not be recorded in the audit log.`
+      );
+    }
   }
 
   async function handleSubmit() {
@@ -360,6 +396,28 @@ function StaffPageInner() {
 
         <div className="staff-layout">
           <div className="staff-main">
+            {auditWarning && (
+              <div
+                role="status"
+                style={{
+                  marginBottom: "var(--space-3)", padding: "10px 14px", borderRadius: "var(--r-md)",
+                  background: "var(--warning-fill, #fdf4e3)", color: "var(--warning-text, var(--fg))", fontSize: 13,
+                  display: "flex", alignItems: "center", gap: 8,
+                }}
+              >
+                <AlertCircle style={{ width: 14, height: 14, flexShrink: 0 }} />
+                <span style={{ flex: 1 }}>
+                  <strong>Export not recorded in the audit log</strong> — {auditWarning}
+                </span>
+                <button
+                  type="button"
+                  style={{ background: "none", border: "none", cursor: "pointer", padding: 0, font: "inherit", textDecoration: "underline" }}
+                  onClick={() => setAuditWarning(null)}
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
             {saveError && (
               <div
                 role="alert"

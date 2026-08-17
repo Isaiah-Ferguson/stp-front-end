@@ -47,6 +47,12 @@ export interface UserDto {
   role: UserRole;
   isActive: boolean;
   staffMemberId: Guid | null;
+  /**
+   * Whether this account has a confirmed second factor. Not a secret — the admin user
+   * list needs it to show who is still unenrolled, and the account page uses it to
+   * decide between "enroll" and "manage".
+   */
+  mfaEnabled: boolean;
 }
 
 export interface UpdateUserDto {
@@ -69,6 +75,53 @@ export interface AuthResultDto {
   token: string;
   expiresAt: string;
   user: UserDto;
+}
+
+// ── Multi-factor authentication ───────────────────────────────────────────────
+
+/**
+ * What POST /api/auth/login returns. `auth` is null exactly when `mfaRequired` is true,
+ * in which case the backend has set only a short-lived challenge cookie and the caller
+ * owes a code to POST /api/auth/login/mfa.
+ *
+ * The JWT moved from `.token` to `.auth.token` when the second factor landed — nothing
+ * in this app reads it (it lives in an httpOnly cookie), but the shape changed.
+ */
+export interface LoginResponseDto {
+  mfaRequired: boolean;
+  auth: AuthResultDto | null;
+}
+
+/** A 6-digit TOTP code or a recovery code; the backend tells them apart by shape. */
+export interface MfaVerifyDto {
+  code: string;
+}
+
+export interface MfaSetupResultDto {
+  /** Base32, for typing into an authenticator app by hand. */
+  secret: string;
+  /** otpauth:// URI — what the QR code encodes, and a deep link on mobile. */
+  otpAuthUri: string;
+}
+
+export interface MfaEnableDto {
+  code: string;
+}
+
+/** Returned exactly once, at enrollment or regeneration. Nothing retrieves them again. */
+export interface MfaEnableResultDto {
+  recoveryCodes: string[];
+}
+
+export interface MfaDisableDto {
+  currentPassword: string;
+  code: string;
+}
+
+export interface MfaStatusDto {
+  enabled: boolean;
+  enabledAt: string | null;
+  recoveryCodesRemaining: number;
 }
 
 // ── Programs ──────────────────────────────────────────────────────────────────
@@ -1032,4 +1085,84 @@ export interface OnboardingItemDto {
   isCompleted: boolean;
   completedDate: string | null;
   expiryDate: string | null;
+}
+
+// ── Audit log ─────────────────────────────────────────────────────────────────
+
+/**
+ * One row of GET /api/audit. Read-only: the table is append-only and the API exposes
+ * no PUT or DELETE, so nothing here has an update counterpart.
+ */
+export interface AuditEventDto {
+  id: Guid;
+  /**
+   * The instant the event happened, recorded as UTC. It arrives WITHOUT a trailing "Z"
+   * — the value round-trips through SQL Server as a kind-less DateTime — so passing it
+   * straight to `new Date()` reads it as local time and shifts it by the viewer's offset.
+   * Use `parseApiTimestamp` from lib/format.
+   */
+  occurredAt: string;
+  /** Null when no account matched the actor, e.g. a failed sign-in against an unknown address. */
+  userId: Guid | null;
+  userEmail: string;
+  userRole: string | null;
+  /** Dotted key, e.g. "auth.login", "participant.update". */
+  action: string;
+  entityType: string | null;
+  entityId: Guid | null;
+  summary: string | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  succeeded: boolean;
+  /** Free-form JSON detail — a failure reason, a status code, an export's row count. */
+  metadata: string | null;
+}
+
+/**
+ * Filters for GET /api/audit. All optional, combined with AND by the backend, with two
+ * matching rules that are easy to get wrong from the UI side:
+ *   - `action` is a PREFIX match ("auth" pulls auth.login, auth.mfa.verify, …)
+ *   - `userEmail` and `entityType` are EXACT (email is normalized to lower-case first)
+ */
+export interface AuditQueryParams {
+  /** ISO instant. Not a calendar date — see the conversion helpers in the audit page. */
+  from?: string;
+  to?: string;
+  userId?: Guid;
+  userEmail?: string;
+  action?: string;
+  entityType?: string;
+  succeeded?: boolean;
+  /** 1-based. Omitting both paging fields still yields page 1 at size 50, never the whole table. */
+  page?: number;
+  /** Clamped to 1..200 server-side. */
+  pageSize?: number;
+}
+
+/** The body rows plus the pre-paging total the endpoint returns in X-Total-Count. */
+export interface AuditPageDto {
+  rows: AuditEventDto[];
+  total: number;
+}
+
+/**
+ * The export kinds POST /api/audit/export accepts. This is a closed vocabulary —
+ * ExportAuditValidation.AllowedKinds rejects anything else with a 400 rather than
+ * letting callers invent log entries — so a new export site needs a backend change
+ * before it can be reported here.
+ */
+export type AuditExportKind =
+  | "reports-summary"
+  | "star-attendance"
+  | "participant-roster"
+  | "stars-detail"
+  | "staff-onboarding";
+
+/** What the client reports after building a CSV in the browser. */
+export interface RecordExportDto {
+  exportKind: AuditExportKind;
+  rowCount: number;
+  fileName?: string;
+  /** Short free-text description of what was in scope (filters applied, selection size). */
+  scope?: string;
 }

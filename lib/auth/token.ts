@@ -25,3 +25,18 @@ export function onUnauthorized(fn: Listener): () => void {
 export function notifyUnauthorized(): void {
   unauthorizedListeners.forEach((fn) => fn());
 }
+
+// Notifies subscribers when the backend's mandatory-MFA gate refuses a request because the
+// signed-in user has not enrolled a second factor. Separate from the 401 relay because the
+// session is perfectly valid — the user is authenticated, just confined to the enrollment
+// endpoints until they finish setting up an authenticator.
+const mfaEnrollmentListeners = new Set<Listener>();
+
+export function onMfaEnrollmentRequired(fn: Listener): () => void {
+  mfaEnrollmentListeners.add(fn);
+  return () => mfaEnrollmentListeners.delete(fn);
+}
+
+export function notifyMfaEnrollmentRequired(): void {
+  mfaEnrollmentListeners.forEach((fn) => fn());
+}

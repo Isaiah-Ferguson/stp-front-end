@@ -21,7 +21,8 @@ import { Skeleton, SkeletonList } from "../components/Skeleton";
 import { useReports } from "@/lib/api/hooks";
 import LoadError from "@/app/components/LoadError";
 import { participantsApi } from "@/lib/api/participants";
-import type { ReportsDto } from "@/lib/types/api";
+import { auditApi } from "@/lib/api/audit";
+import type { AuditExportKind, ReportsDto } from "@/lib/types/api";
 
 const STATUS_ROWS: { key: "activeParticipants" | "prospective" | "attention" | "former"; label: string; cls: string }[] = [
   { key: "activeParticipants", label: "Active",          cls: "success" },
@@ -40,6 +41,7 @@ export default function ReportsPage() {
   const report: ReportsDto | null = reportQ.data ?? null;
   const loading = reportQ.isPending;
   const [exporting, setExporting] = useState(false);
+  const [auditWarning, setAuditWarning] = useState<string | null>(null);
 
   const dash = (v: React.ReactNode) => (loading ? <Skeleton w={48} h={22} style={{ marginTop: 2 }} /> : v);
 
@@ -63,7 +65,13 @@ export default function ReportsPage() {
     [report]
   );
 
-  function downloadCsv(rows: (string | number)[][], filename: string) {
+  /**
+   * Builds the CSV in the browser and saves it. Returns how many data rows it wrote —
+   * header and blank separator lines excluded — so the audit report below always carries
+   * the count of the file that actually landed, rather than a number computed separately
+   * and free to drift away from it.
+   */
+  function downloadCsv(rows: (string | number)[][], filename: string): number {
     const csv = rows
       .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
       .join("\r\n");
@@ -74,13 +82,53 @@ export default function ReportsPage() {
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+    return rows.slice(1).filter((r) => r.length > 0).length;
+  }
+
+  /**
+   * Tells the backend what just left the building. These CSVs are assembled in the browser
+   * from data the page already holds, so the server never sees the file — this call is the
+   * only record of which export ran and how much was in it.
+   *
+   * TWO JUDGEMENT CALLS, both deliberate:
+   *
+   * Ordering — the file is saved first and reported afterwards. Reporting first and
+   * refusing the download when the call fails would look stricter, but it protects nothing:
+   * the rows are already in the browser (the server logged the GET that supplied them), so
+   * blocking would withhold a file the user demonstrably already has. The export is not the
+   * disclosure; the earlier fetch was.
+   *
+   * Failure — it must not fail silently. An audit log where "never happened" and "happened
+   * but the report was dropped" look identical is worth much less than one that says which
+   * it was, and nobody would think to check. So a failed report surfaces a banner naming the
+   * unrecorded export; the reviewer can reconcile it against the server-side row for the
+   * GET, which is the authoritative record either way. It stays non-blocking: the download
+   * has already succeeded, and a modal cannot un-download it.
+   */
+  async function reportExport(
+    exportKind: AuditExportKind,
+    rowCount: number,
+    fileName: string,
+    scope: string
+  ) {
+    try {
+      await auditApi.recordExport({ exportKind, rowCount, fileName, scope });
+      setAuditWarning(null);
+    } catch {
+      // No error detail here on purpose — it adds nothing the admin can act on, and the
+      // useful record is the one that did not get written.
+      setAuditWarning(
+        `“${fileName}” downloaded, but it could not be recorded in the audit log. The download itself was still logged server-side when the data was fetched.`
+      );
+    }
   }
 
   const stamp = () => new Date().toISOString().slice(0, 10);
 
   function exportSummary() {
     if (!report) return;
-    downloadCsv(
+    const fileName = `shining-stars-summary-${stamp()}.csv`;
+    const rowCount = downloadCsv(
       [
         ["Program", "Enrolled", "Attendance %", "Sessions"],
         ...report.programs.map((p) => [p.name, p.enrolled, p.attendancePct, p.sessions]),
@@ -95,32 +143,42 @@ export default function ReportsPage() {
         ["Open tasks", report.totals.openTasks],
         ["Overdue tasks", report.totals.overdueTasks],
       ],
-      `shining-stars-summary-${stamp()}.csv`
+      fileName
+    );
+    void reportExport(
+      "reports-summary",
+      rowCount,
+      fileName,
+      `Program totals and org-wide counts (${report.programs.length} programs)`
     );
   }
 
   function exportStarAttendance() {
     if (!report) return;
-    downloadCsv(
+    const fileName = `star-attendance-${stamp()}.csv`;
+    const rowCount = downloadCsv(
       [
         ["Name", "Program", "Status", "Present", "Absent", "Present rate %"],
         ...report.starAttendance.map((s) => [s.name, s.programName, s.status, s.present, s.absent, s.presentRatePct]),
       ],
-      `star-attendance-${stamp()}.csv`
+      fileName
     );
+    void reportExport("star-attendance", rowCount, fileName, "Per-star attendance and absences, all stars");
   }
 
   async function exportRoster() {
     setExporting(true);
     try {
       const ps = await participantsApi.getAll();
-      downloadCsv(
+      const fileName = `participant-roster-${stamp()}.csv`;
+      const rowCount = downloadCsv(
         [
           ["Name", "Program", "Status", "Attendance %", "Start Date"],
           ...ps.map((p) => [p.fullName, p.programName, p.status, p.attendancePct, p.startDate]),
         ],
-        `participant-roster-${stamp()}.csv`
+        fileName
       );
+      await reportExport("participant-roster", rowCount, fileName, "Full roster, no filters applied");
     } catch {
       /* ignore — leave the page as-is */
     } finally {
@@ -158,6 +216,22 @@ export default function ReportsPage() {
       </div>
 
       <div className="adm-content">
+        {auditWarning && (
+          <div className="ss-alert is-warning">
+            <AlertTriangle />
+            <span className="ss-alert-text">
+              <strong>Export not recorded in the audit log</strong> — {auditWarning}
+            </span>
+            <button
+              className="ss-alert-action"
+              type="button"
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 0, font: "inherit" }}
+              onClick={() => setAuditWarning(null)}
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
         {reportQ.isError && (
           <LoadError
             title="Couldn't load reports"

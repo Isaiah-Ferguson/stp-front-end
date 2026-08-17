@@ -25,6 +25,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useParticipants, usePrograms } from "@/lib/api/hooks";
+import { auditApi } from "@/lib/api/audit";
 import LoadError from "@/app/components/LoadError";
 import AddParticipantModal from "../components/AddParticipantModal";
 import type {
@@ -129,7 +130,10 @@ function buildAlerts(dto: ParticipantSummaryDto): AlertKind[] {
   return alerts;
 }
 
-function exportCsv(rows: Student[]) {
+const STARS_CSV_FILENAME = "stars.csv";
+
+/** Builds and downloads the CSV. Returns the number of DATA rows, for the audit report. */
+function exportCsv(rows: Student[]): number {
   const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
   const header = ["Name", "DOB", "Birth year", "Program", "Also enrolled in", "Status", "Alerts", "Attendance %", "Service coordinator", "Started", "Guardian", "Guardian phone", "Guardian email", "Referral source", "T-shirt size", "POS expiry", "IPP expiry", "Allergies (* = anaphylactic)"];
   const lines = rows.map((s) =>
@@ -141,9 +145,10 @@ function exportCsv(rows: Student[]) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "stars.csv";
+  a.download = STARS_CSV_FILENAME;
   a.click();
   URL.revokeObjectURL(url);
+  return rows.length;
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -157,6 +162,7 @@ export default function StudentsPage() {
   const data = useMemo(() => (participantsQ.data ?? []).map(dtoToStudent), [participantsQ.data]);
   const programs: ProgramSummaryDto[] = programsQ.data ?? [];
   const [modalOpen, setModalOpen] = useState(false);
+  const [auditWarning, setAuditWarning] = useState<string | null>(null);
 
   // filters
   const [statusTab, setStatusTab] = useState<StatusTab>("all");
@@ -253,6 +259,43 @@ export default function StudentsPage() {
 
   const exportRows = selected.size > 0 ? filtered.filter((r) => selected.has(r.id)) : filtered;
 
+  /**
+   * Download, then report what left the building.
+   *
+   * This is the most sensitive export in the product — the columns include DOB, guardian name,
+   * phone and email, POS/IPP expiry and allergies with the anaphylactic marker — and the button
+   * has no admin gate, so any Staff account can use it. The server never sees the file, because
+   * the CSV is built here from rows the page already holds.
+   *
+   * The server-side participant.list row is NOT a substitute: it fires per FETCH, and React
+   * Query caches for 60 seconds with no refetch on focus. Somebody opening this page once and
+   * exporting twenty differently-filtered CSVs produced exactly one row, with no count, no file
+   * name, and nothing to say twenty files had been made.
+   *
+   * Ordering and failure handling follow the Reports page: the file is saved first (blocking
+   * would withhold data the browser demonstrably already has — the earlier fetch was the
+   * disclosure), and a failed report raises a non-blocking banner rather than vanishing, so
+   * "never happened" and "happened but went unrecorded" do not look identical.
+   */
+  async function handleExport() {
+    const rowCount = exportCsv(exportRows);
+    try {
+      await auditApi.recordExport({
+        exportKind: "stars-detail",
+        rowCount,
+        fileName: STARS_CSV_FILENAME,
+        // Filter description and selection size only — never a child's name. This string lands
+        // verbatim in audit metadata, which is read by more people than the roster is.
+        scope: selected.size > 0 ? `${selected.size} selected` : filterSummary,
+      });
+      setAuditWarning(null);
+    } catch {
+      setAuditWarning(
+        `“${STARS_CSV_FILENAME}” (${rowCount} Stars, including dates of birth, guardian contacts and allergies) downloaded, but it could not be recorded in the audit log.`
+      );
+    }
+  }
+
   const sortCaret = (col: SortKey) =>
     sortKey === col ? (
       <span className="caret">{sortDir === "asc" ? <ChevronUp /> : <ChevronDown />}</span>
@@ -304,7 +347,7 @@ export default function StudentsPage() {
           <button
             className="ss-btn"
             type="button"
-            onClick={() => exportCsv(exportRows)}
+            onClick={handleExport}
             disabled={loading || filtered.length === 0}
           >
             <Download className="ss-btn-icon" />
@@ -314,6 +357,22 @@ export default function StudentsPage() {
       </div>
 
       <div className="adm-content">
+        {auditWarning && (
+          <div className="ss-alert is-warning">
+            <AlertTriangle />
+            <span className="ss-alert-text">
+              <strong>Export not recorded in the audit log</strong> — {auditWarning}
+            </span>
+            <button
+              className="ss-alert-action"
+              type="button"
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 0, font: "inherit" }}
+              onClick={() => setAuditWarning(null)}
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
         {/* stat tabs */}
         <div className="stat-tabs">
           {TAB_DEFS.map((t) => (

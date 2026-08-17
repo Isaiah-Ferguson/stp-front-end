@@ -13,6 +13,7 @@ import {
   Check,
   KeyRound,
   Trash2,
+  ShieldOff,
 } from "lucide-react";
 import { authApi } from "@/lib/api/auth";
 import { useEscapeKey } from "@/lib/useEscapeKey";
@@ -435,6 +436,91 @@ export function ResetPasswordModal({
           <button className="ss-btn ss-btn-primary" type="button" disabled={!valid || saving} onClick={handleSubmit}>
             {saving ? <Loader2 className="ss-btn-icon" style={{ animation: "spin 1s linear infinite" }} /> : <KeyRound className="ss-btn-icon" />}
             {saving ? "Resetting…" : "Set password"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Reset MFA Confirm Modal ──────────────────────────────────────────────────────
+
+/**
+ * The lost-phone escape hatch. There is no way to recover a user's second factor — the
+ * backend never exposes the secret, deliberately — so the only remedy is to clear it and make
+ * them enroll again. That is a real reduction in the account's protection until they do, so
+ * it gets a confirmation that states the consequence rather than a bare "Are you sure?".
+ */
+export function ResetMfaModal({
+  target,
+  isSelf,
+  onClose,
+  onReset,
+}: {
+  target: UserDto;
+  isSelf: boolean;
+  onClose: () => void;
+  onReset: () => void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  useEscapeKey(onClose);
+  const panelRef = useDialogFocus<HTMLDivElement>();
+
+  async function handleReset() {
+    setSaving(true);
+    setError(null);
+    try {
+      await authApi.adminResetMfa(target.id);
+      onReset();
+    } catch (e) {
+      const status = (e as { status?: number })?.status;
+      setError(
+        status === 404
+          ? "That account no longer exists — refresh the list."
+          : "Could not reset two-factor authentication — try again."
+      );
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div style={overlayStyle} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-label="Reset two-factor authentication" style={{ background: "var(--surface)", borderRadius: "var(--r-lg)", width: "min(440px, 100%)", display: "flex", flexDirection: "column", border: "0.5px solid var(--border-hover)" }}>
+        <div style={{ padding: "var(--space-4)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+            <span style={{ display: "inline-flex", width: 32, height: 32, borderRadius: "50%", background: "var(--warning-fill)", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <ShieldOff style={{ width: 16, height: 16, color: "#9a6a12" }} />
+            </span>
+            <h3 style={{ fontSize: 15, fontWeight: 500, margin: 0 }}>Reset two-factor authentication?</h3>
+          </div>
+
+          <p style={{ fontSize: 13, color: "var(--fg-secondary)", lineHeight: 1.6, margin: "0 0 10px" }}>
+            <strong>{target.fullName}</strong> ({target.email}) will lose their authenticator
+            app and all of their recovery codes, and will be signed out everywhere.
+          </p>
+          <p style={{ fontSize: 13, color: "var(--fg-secondary)", lineHeight: 1.6, margin: "0 0 10px" }}>
+            Until they set up a new authenticator, their password is the only thing standing
+            between anyone who has it and this system&apos;s participant records. Do this only
+            when you are confident you are talking to them — a phone call, not an email.
+          </p>
+
+          {isSelf && (
+            <p style={{ fontSize: 13, color: "var(--danger)", lineHeight: 1.6, margin: 0 }}>
+              This is your own account. You will be signed out and will have to enroll again
+              before you can do anything else.
+            </p>
+          )}
+        </div>
+
+        {error && <div style={{ ...errorBoxStyle, marginBottom: 0 }}><AlertCircle style={{ width: 13, height: 13, flexShrink: 0, marginTop: 1 }} />{error}</div>}
+
+        <div style={{ padding: "var(--space-3) var(--space-4)", borderTop: "0.5px solid var(--border)", display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button className="ss-btn" type="button" onClick={onClose} disabled={saving}>Cancel</button>
+          <button className="ss-btn" type="button" disabled={saving} onClick={handleReset}
+            style={{ background: "var(--danger)", color: "#fff", borderColor: "var(--danger)" }}>
+            {saving ? <Loader2 className="ss-btn-icon" style={{ animation: "spin 1s linear infinite" }} /> : <ShieldOff className="ss-btn-icon" />}
+            {saving ? "Resetting…" : "Reset two-factor"}
           </button>
         </div>
       </div>

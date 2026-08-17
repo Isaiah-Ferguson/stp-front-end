@@ -24,6 +24,7 @@ import {
   CheckSquare,
   BookOpen,
   BarChart3,
+  ScrollText,
   Settings,
   LogOut,
   UserCog,
@@ -89,6 +90,7 @@ const SECTIONS: NavSection[] = [
     label: "Admin",
     items: [
       { href: "/reports", label: "Reports", icon: BarChart3, adminOnly: true },
+      { href: "/audit", label: "Audit Log", icon: ScrollText, adminOnly: true },
       { href: "/settings", label: "Settings", icon: Settings, adminOnly: true },
     ],
   },

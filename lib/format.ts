@@ -27,3 +27,26 @@ export function shortDate(s: string): string {
 export function longDate(s: string): string {
   return parseLocalDate(s).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 }
+
+/**
+ * Parse an API *timestamp* — an instant, not a calendar date — into a Date.
+ *
+ * The backend records these with DateTime.UtcNow and they come back through SQL Server
+ * with no timezone kind attached, so the JSON reads "2026-08-17T17:24:23.42" with no "Z".
+ * `new Date()` treats that as local time, which silently shifts every audit entry by the
+ * viewer's UTC offset — seven hours in California, and always in the direction that makes
+ * an event look like it happened earlier than it did. Appending the Z when no designator
+ * is present says out loud what the value already is.
+ */
+export function parseApiTimestamp(s: string): Date {
+  const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(s);
+  return new Date(hasZone ? s : `${s}Z`);
+}
+
+/** An instant → "Aug 17, 2026, 10:24:23 AM" in the viewer's own timezone. */
+export function timestampLabel(s: string): string {
+  return parseApiTimestamp(s).toLocaleString("en-US", {
+    month: "short", day: "numeric", year: "numeric",
+    hour: "numeric", minute: "2-digit", second: "2-digit",
+  });
+}

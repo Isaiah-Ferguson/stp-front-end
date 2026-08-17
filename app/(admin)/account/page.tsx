@@ -15,6 +15,7 @@ import { authApi } from "@/lib/api/auth";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { initialsOf } from "@/lib/format";
 import type { ChangePasswordDto } from "@/lib/types/api";
+import { MfaSection } from "./_mfa";
 
 const MIN_PASSWORD = 8;
 
@@ -61,7 +62,7 @@ function PasswordField({
 }
 
 export default function AccountPage() {
-  const { user, loading } = useAuth();
+  const { user, loading, mfaEnrollmentRequired } = useAuth();
 
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
@@ -73,8 +74,10 @@ export default function AccountPage() {
   const lenOk = next.length >= MIN_PASSWORD;
   const matchOk = next === confirm;
   const distinctOk = next !== current || next.length === 0;
+  // /api/auth/change-password is not exempt from the MFA gate, so for an unenrolled user it
+  // would 403 on submit. Say so up front rather than let them fill the form and get refused.
   const canSubmit =
-    current.length > 0 && lenOk && matchOk && next !== current;
+    current.length > 0 && lenOk && matchOk && next !== current && !mfaEnrollmentRequired;
 
   async function handleSubmit(e: { preventDefault: () => void }) {
     e.preventDefault();
@@ -136,6 +139,9 @@ export default function AccountPage() {
             </div>
           </div>
 
+          {/* Two-factor authentication */}
+          <MfaSection />
+
           {/* Change password */}
           <div className="widget">
             <div className="widget-head">
@@ -143,6 +149,16 @@ export default function AccountPage() {
               <h3>Change password</h3>
             </div>
             <div className="widget-body">
+              {mfaEnrollmentRequired && (
+                <div className="ss-alert is-info" style={{ marginBottom: "var(--space-3)" }}>
+                  <AlertCircle />
+                  <span className="ss-alert-text">
+                    Set up two-factor authentication first — password changes are blocked until
+                    your account has a second factor.
+                  </span>
+                </div>
+              )}
+
               {done && (
                 <div className="ss-alert" style={{ marginBottom: "var(--space-3)", background: "var(--success-fill)", borderColor: "var(--success-border)", color: "var(--success-text)" }}>
                   <CheckCircle2 />

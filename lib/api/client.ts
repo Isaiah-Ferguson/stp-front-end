@@ -1,4 +1,4 @@
-import { notifyUnauthorized } from "../auth/token";
+import { notifyUnauthorized, notifyMfaEnrollmentRequired } from "../auth/token";
 
 // All requests go through the same-origin /backend proxy (see next.config.ts rewrites),
 // so the httpOnly auth cookies are first-party and sent automatically (#15). The real
@@ -8,34 +8,48 @@ const BASE_URL = "/backend";
 /** Default per-request timeout (#36) — a hung backend must not leave pages loading forever. */
 const DEFAULT_TIMEOUT_MS = 15_000;
 
+/**
+ * The backend's machine-readable error code, sent alongside the human message on the
+ * errors the frontend has to branch on rather than merely display. Matching on the
+ * message string is not a contract; this is.
+ */
+export const MFA_ENROLLMENT_REQUIRED = "mfa_enrollment_required";
+
 export class ApiError extends Error {
   /** Human-readable message from the backend (ProblemDetails detail/title or {message}), when present. */
   public detail?: string;
 
-  constructor(public status: number, message: string, detail?: string) {
+  /** Backend error code, e.g. "mfa_enrollment_required". Absent on most responses. */
+  public code?: string;
+
+  constructor(public status: number, message: string, detail?: string, code?: string) {
     super(detail ?? message);
     this.name = "ApiError";
     this.detail = detail;
+    this.code = code;
   }
 }
 
-/** Pulls the backend's human-readable error out of a ProblemDetails or {message} body (#37). */
-async function readErrorDetail(res: Response): Promise<string | undefined> {
+type BackendError = { detail?: string; code?: string };
+
+/** Pulls the backend's human-readable error and error code out of a ProblemDetails or {message} body (#37). */
+async function readError(res: Response): Promise<BackendError> {
   try {
     const body = (await res.json()) as {
       detail?: string;
       title?: string;
       message?: string;
+      code?: string;
       errors?: Record<string, string[]>;
     };
     // Validation ProblemDetails: flatten the field errors into one line.
     if (body.errors && typeof body.errors === "object") {
       const lines = Object.values(body.errors).flat();
-      if (lines.length > 0) return lines.join(" ");
+      if (lines.length > 0) return { detail: lines.join(" "), code: body.code };
     }
-    return body.detail ?? body.message ?? body.title;
+    return { detail: body.detail ?? body.message ?? body.title, code: body.code };
   } catch {
-    return undefined;
+    return {};
   }
 }
 
@@ -66,7 +80,20 @@ function isAuthPath(path: string): boolean {
     || path.startsWith("/api/auth/logout");
 }
 
-export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+/** A parsed response body plus the headers it came with. */
+export interface ApiResult<T> {
+  data: T;
+  headers: Headers;
+}
+
+/**
+ * Same request pipeline as `apiFetch` — silent refresh, timeout, error shaping — but hands
+ * back the response headers as well. Paged endpoints put their pre-paging total in
+ * X-Total-Count, and a body-only helper cannot see it. Reading that header works because
+ * every call goes through the same-origin /backend rewrite, so CORS (and its
+ * exposed-headers allowlist) never enters into it.
+ */
+export async function apiFetchWithHeaders<T>(path: string, init?: RequestInit): Promise<ApiResult<T>> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(init?.headers as Record<string, string> | undefined),
@@ -98,14 +125,27 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   }
 
   if (!res.ok) {
-    const detail = await readErrorDetail(res);
-    throw new ApiError(res.status, `API ${res.status}: ${path}`, detail);
+    const { detail, code } = await readError(res);
+
+    // The mandatory-MFA gate refuses nearly every endpoint until the user enrolls. Relay it
+    // once, here, so a signed-in-but-unenrolled user is routed to enrollment instead of
+    // every page independently rendering its own "couldn't load" state. The server-side
+    // filter is the real control; this only decides what the user is looking at.
+    if (res.status === 403 && code === MFA_ENROLLMENT_REQUIRED) {
+      notifyMfaEnrollmentRequired();
+    }
+
+    throw new ApiError(res.status, `API ${res.status}: ${path}`, detail, code);
   }
 
   // 204 No Content (and empty bodies) have nothing to parse.
-  if (res.status === 204) return undefined as T;
+  if (res.status === 204) return { data: undefined as T, headers: res.headers };
   const text = await res.text();
-  return (text ? JSON.parse(text) : undefined) as T;
+  return { data: (text ? JSON.parse(text) : undefined) as T, headers: res.headers };
+}
+
+export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  return (await apiFetchWithHeaders<T>(path, init)).data;
 }
 
 export const api = {

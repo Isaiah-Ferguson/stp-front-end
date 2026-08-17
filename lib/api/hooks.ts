@@ -4,7 +4,8 @@
 // stop re-implementing useState + useEffect + .catch(() => setX([])) per resource.
 // Reference data (programs, staff, taxonomy) is cached for 60s across page navigations.
 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { auditApi } from "./audit";
 import { programsApi } from "./programs";
 import { participantsApi } from "./participants";
 import { staffApi } from "./staff";
@@ -16,6 +17,7 @@ import { calendarApi } from "./calendar";
 import { scriptsApi } from "./scripts";
 import { taxonomyApi } from "./taxonomy";
 import { volunteersApi } from "./volunteers";
+import type { AuditQueryParams } from "../types/api";
 
 export const queryKeys = {
   programs: ["programs"] as const,
@@ -32,6 +34,7 @@ export const queryKeys = {
   objectiveAreas: ["taxonomy", "objective-areas"] as const,
   subSkills: ["taxonomy", "sub-skills"] as const,
   volunteers: ["volunteers"] as const,
+  audit: (params: AuditQueryParams) => ["audit", params] as const,
 };
 
 export const usePrograms = () =>
@@ -83,3 +86,26 @@ export const useObjectiveAreas = () =>
 
 export const useSubSkills = () =>
   useQuery({ queryKey: queryKeys.subSkills, queryFn: () => taxonomyApi.getSubSkills(), staleTime: 5 * 60_000 });
+
+/**
+ * Audit log search. Unlike everything else here the filters and page live in the key, so
+ * each combination caches separately.
+ *
+ * `keepPreviousData` holds the current page on screen while the next one loads instead of
+ * collapsing the table back to skeletons — which matters more here than elsewhere: reading
+ * this log writes an audit.view row of its own, so a flicker that tempts an admin into
+ * clicking again costs a spurious entry in the very table they are reading.
+ *
+ * `staleTime: 0` is set explicitly rather than left to the default, because the default here
+ * is NOT zero: QueryProvider sets 60 seconds app-wide. Inheriting it meant an admin who
+ * loaded /audit, stepped away to /users and came back within the minute saw a cached page —
+ * so a refresh-token replay recorded in between simply was not there. An audit log is read to
+ * check what just happened; a minute is the wrong amount of stale for that.
+ */
+export const useAuditEvents = (params: AuditQueryParams) =>
+  useQuery({
+    queryKey: queryKeys.audit(params),
+    queryFn: () => auditApi.search(params),
+    placeholderData: keepPreviousData,
+    staleTime: 0,
+  });
