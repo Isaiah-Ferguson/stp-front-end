@@ -13,6 +13,7 @@ import type {
   MfaEnableDto,
   MfaEnableResultDto,
   MfaDisableDto,
+  AdminResetMfaDto,
 } from "../types/api";
 
 export const authApi = {
@@ -47,6 +48,13 @@ export const authApi = {
     api.post<MfaEnableResultDto>("/api/auth/mfa/recovery-codes", dto),
   /** Removes the caller's authenticator — password AND code. See the note in _mfa.tsx about naming. */
   mfaDisable: (dto: MfaDisableDto) => api.post<void>("/api/auth/mfa/disable", dto),
-  /** Clears another user's second factor. Admin only, for the lost-phone case. */
-  adminResetMfa: (id: string)      => api.post<void>(`/api/auth/users/${id}/mfa/reset`, {}),
+  /**
+   * Clears a user's second factor. Admin only, for the lost-phone case.
+   *
+   * Targeting your OWN account requires currentPassword — an admin session by itself must not
+   * be able to strip its own factor, or a stolen cookie routes around mfaDisable's
+   * password-AND-code guard. Resetting anyone else needs no password.
+   */
+  adminResetMfa: (id: string, dto?: AdminResetMfaDto) =>
+    api.post<void>(`/api/auth/users/${id}/mfa/reset`, dto ?? {}),
 };

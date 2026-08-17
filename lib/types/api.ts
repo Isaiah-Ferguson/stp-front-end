@@ -118,6 +118,11 @@ export interface MfaDisableDto {
   code: string;
 }
 
+/** Body for an admin MFA reset. currentPassword is required only when targeting yourself. */
+export interface AdminResetMfaDto {
+  currentPassword?: string;
+}
+
 export interface MfaStatusDto {
   enabled: boolean;
   enabledAt: string | null;
