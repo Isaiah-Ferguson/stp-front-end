@@ -53,9 +53,12 @@ export const iconBtnStyle: React.CSSProperties = {
 };
 
 function apiErrorMessage(e: unknown, fallback: string): string {
-  const status = (e as { status?: number })?.status;
-  if (status === 409 || status === 400) {
-    // Backend sends a human-readable guard message; surface a sensible default.
+  const err = e as { status?: number; detail?: string };
+  // The backend already sends a specific, human-readable reason — "Password must contain at
+  // least one letter and one number", "Cannot remove the last active admin". Showing a
+  // generic line instead used to send admins hunting for the wrong problem entirely.
+  if (err?.detail) return err.detail;
+  if (err?.status === 409 || err?.status === 400) {
     return "That change isn't allowed — you can't remove the last admin or lock yourself out.";
   }
   return fallback;
@@ -117,11 +120,14 @@ export function CreateUserModal({
       const created = await authApi.register(dto);
       onCreated(created);
     } catch (e) {
-      const status = (e as { status?: number })?.status;
+      // Do NOT infer the cause from the status code. RegisterAsync rejects a bad password
+      // and a taken address, and both used to arrive as 409 — so a password that was one
+      // character short told the admin to change the email, which was never the problem.
       setError(
-        status === 409
-          ? "An account with that email already exists."
-          : "Could not create the account — make sure the backend is running and you are signed in as an admin."
+        apiErrorMessage(
+          e,
+          "Could not create the account — make sure the backend is running and you are signed in as an admin."
+        )
       );
       setSaving(false);
     }
