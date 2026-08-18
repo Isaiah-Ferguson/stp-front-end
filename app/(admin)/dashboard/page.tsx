@@ -110,14 +110,13 @@ export default function DashboardPage() {
   // ── Alerts ────────────────────────────────────────────────────────────────────
   const alertItems = useMemo(() => {
     type AlertSev = "danger" | "warning" | "info";
-    const items: { severity: AlertSev; txt: string; sub: string; act: string; href: string }[] =
-      docAlertParticipants.slice(0, 5).map((p) => ({
-        severity: "danger",
-        txt: `${p.fullName} — document alert`,
-        sub: `${p.programName} · review documents`,
-        act: "Review",
-        href: `/students/${p.id}`,
-      }));
+    // Dated alerts are built FIRST and document alerts collapse into a single summary row at
+    // the end. Seeding the list with one row per Star missing paperwork used to fill all five
+    // slots before the loop below ever ran, so an expired POS authorization — the alert with
+    // billing and legal consequences, and the one the client asked for by name — silently
+    // never appeared. A missing intake form is worth one line; a lapsed authorization is worth
+    // the top of the list.
+    const items: { severity: AlertSev; txt: string; sub: string; act: string; href: string }[] = [];
 
     // POS authorizations and IPPs expiring within a month (or already expired) — in-app notification.
     for (const p of participants) {
@@ -170,6 +169,18 @@ export default function DashboardPage() {
         severity: "warning",
         txt: `${authPending.length} star${authPending.length > 1 ? "s" : ""} awaiting authorization`,
         sub: "Admin/instructor sign-off needed",
+        act: "Review",
+        href: "/students",
+      });
+    }
+
+    // One row for all outstanding intake paperwork, not one per Star. Every imported Star
+    // starts with this unset, so per-Star rows would bury everything else on day one.
+    if (docAlertParticipants.length && items.length < 6) {
+      items.push({
+        severity: "warning",
+        txt: `${docAlertParticipants.length} star${docAlertParticipants.length > 1 ? "s" : ""} missing intake documents`,
+        sub: "Confirm intake paperwork on each star's profile",
         act: "Review",
         href: "/students",
       });

@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { BarChart3 } from "lucide-react";
 import { cohortApi } from "@/lib/api/cohort";
 import { useMyPrograms } from "@/lib/api/hooks";
-import type { CohortRollUpDto, CohortRollUpRowDto, ProgramSummaryDto } from "@/lib/types/api";
+import type { CohortRollUpDto, CohortRollUpRowDto, ProgramSummaryDto, CohortStarDto, ProgressLevel } from "@/lib/types/api";
 
 // Ordinal "mastery" ramp (light -> dark = more developed). Validated: CVD ΔE 17.2,
 // monotonic lightness; the light step's contrast is relieved by direct count labels + gaps.
@@ -32,6 +32,44 @@ function DistributionBar({ row }: { row: CohortRollUpRowDto }) {
           style={{ flex: s.n, background: LEVEL[s.key].color, minWidth: 3 }} />
       ))}
     </div>
+  );
+}
+
+/**
+ * A roll-up count that answers "which students", not just "how many" — Rachel's request.
+ * Zero counts are plain text: nothing to open, and making them look clickable invites a
+ * pointless round-trip.
+ */
+function CountCell({
+  n, level, subSkillId, isOpen, onToggle,
+}: {
+  n: number;
+  level: ProgressLevel;
+  subSkillId: string;
+  isOpen: boolean;
+  onToggle: (subSkillId: string, level: ProgressLevel) => void;
+}) {
+  const base: React.CSSProperties = {
+    padding: "8px 12px", textAlign: "center", fontVariantNumeric: "tabular-nums",
+  };
+  if (n === 0) return <td style={{ ...base, color: "var(--fg-tertiary)" }}>0</td>;
+  return (
+    <td style={base}>
+      <button
+        type="button"
+        onClick={() => onToggle(subSkillId, level)}
+        aria-expanded={isOpen}
+        title={`Show the ${n} star${n !== 1 ? "s" : ""} at ${level}`}
+        style={{
+          border: "0.5px solid transparent", background: isOpen ? "var(--bg-tertiary)" : "none",
+          borderRadius: "var(--r-sm)", padding: "2px 8px", cursor: "pointer",
+          font: "inherit", color: "var(--fg)", fontVariantNumeric: "tabular-nums",
+          textDecoration: "underline", textDecorationStyle: "dotted", textUnderlineOffset: 3,
+        }}
+      >
+        {n}
+      </button>
+    </td>
   );
 }
 
@@ -63,6 +101,28 @@ export default function CohortRollUpPage() {
   }, [month, programId]);
 
   // Group rows by section (each section = one objective area of the 5 measured ones).
+  // Which cell is expanded, and the Stars behind it. One at a time — this is a reference
+  // lookup ("who are those four?"), not a comparison view.
+  const [openCell, setOpenCell] = useState<{ subSkillId: string; level: ProgressLevel } | null>(null);
+  const [cellStars, setCellStars] = useState<CohortStarDto[] | null>(null);
+  const [cellLoading, setCellLoading] = useState(false);
+
+  function toggleCell(subSkillId: string, level: ProgressLevel) {
+    const same = openCell?.subSkillId === subSkillId && openCell?.level === level;
+    if (same) { setOpenCell(null); setCellStars(null); return; }
+    setOpenCell({ subSkillId, level });
+    setCellStars(null);
+    setCellLoading(true);
+    cohortApi.getStarsAtLevel(month, subSkillId, level, programId || undefined)
+      .then(setCellStars)
+      .catch(() => setCellStars([]))
+      .finally(() => setCellLoading(false));
+  }
+
+  // Collapse when the month or program changes — the open list would otherwise describe a
+  // cohort that is no longer on screen.
+  useEffect(() => { setOpenCell(null); setCellStars(null); }, [month, programId]);
+
   const sections = useMemo(() => {
     const map = new Map<number, { name: string; color: string; rows: CohortRollUpRowDto[] }>();
     data?.rows.forEach((r) => {
@@ -149,15 +209,47 @@ export default function CohortRollUpPage() {
                     </thead>
                     <tbody>
                       {sec.rows.map((r) => (
-                        <tr key={r.subSkillId} style={{ borderBottom: "0.5px solid var(--border)" }}>
+                        <Fragment key={r.subSkillId}>
+                        <tr style={{ borderBottom: "0.5px solid var(--border)" }}>
                           <td style={{ padding: "8px 12px", fontSize: "var(--fs-body)", whiteSpace: "nowrap" }}>{r.subSkillName}</td>
                           <td style={{ padding: "8px 12px", minWidth: 160 }}><DistributionBar row={r} /></td>
-                          <td style={{ padding: "8px 12px", textAlign: "center", fontVariantNumeric: "tabular-nums", color: r.noviceCount ? "var(--fg)" : "var(--fg-tertiary)" }}>{r.noviceCount}</td>
-                          <td style={{ padding: "8px 12px", textAlign: "center", fontVariantNumeric: "tabular-nums", color: r.intermediateCount ? "var(--fg)" : "var(--fg-tertiary)" }}>{r.intermediateCount}</td>
-                          <td style={{ padding: "8px 12px", textAlign: "center", fontVariantNumeric: "tabular-nums", color: r.expertCount ? "var(--fg)" : "var(--fg-tertiary)" }}>{r.expertCount}</td>
+                          {(["Novice", "Intermediate", "Expert"] as const).map((lvl) => (
+                            <CountCell
+                              key={lvl}
+                              n={lvl === "Novice" ? r.noviceCount : lvl === "Intermediate" ? r.intermediateCount : r.expertCount}
+                              level={lvl}
+                              subSkillId={r.subSkillId}
+                              isOpen={openCell?.subSkillId === r.subSkillId && openCell?.level === lvl}
+                              onToggle={toggleCell}
+                            />
+                          ))}
                           <td style={{ padding: "8px 12px", textAlign: "center", fontVariantNumeric: "tabular-nums", color: "var(--fg-secondary)" }}>{r.scoredCount}</td>
                           <td style={{ padding: "8px 12px" }}><LevelBadge level={r.mostCommonLevel} /></td>
                         </tr>
+                        {openCell?.subSkillId === r.subSkillId && (
+                          <tr style={{ borderBottom: "0.5px solid var(--border)", background: "var(--bg-tertiary)" }}>
+                            <td colSpan={7} style={{ padding: "10px 12px" }}>
+                              <div style={{ fontSize: "var(--fs-label)", textTransform: "uppercase", letterSpacing: "var(--ls-label)", color: "var(--fg-tertiary)", marginBottom: 6 }}>
+                                {r.subSkillName} · {openCell.level}
+                              </div>
+                              {cellLoading ? (
+                                <span style={{ fontSize: 13, color: "var(--fg-tertiary)" }}>Loading…</span>
+                              ) : !cellStars || cellStars.length === 0 ? (
+                                <span style={{ fontSize: 13, color: "var(--fg-tertiary)" }}>No stars to show.</span>
+                              ) : (
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                                  {cellStars.map((st) => (
+                                    <span key={st.participantId} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 9px 3px 3px", borderRadius: "var(--r-pill)", border: "0.5px solid var(--border)", background: "var(--surface)", fontSize: 13 }}>
+                                      <span className="ss-avatar teacher sm">{st.initials}</span>
+                                      {st.fullName}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                        </Fragment>
                       ))}
                     </tbody>
                   </table>

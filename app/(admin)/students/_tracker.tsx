@@ -137,9 +137,20 @@ export default function TrackerWidget({ participantId, tracks = ["PartTime"] }: 
 
   function recordScore(subSkillId: string, week: number, score: DataScore) {
     progressApi.recordWeekly({ participantId, subSkillId, monthKey: month, weekNumber: week, score })
-      .then((saved) => setData((prev) => prev
-        ? { ...prev, entries: [...prev.entries.filter((e) => !(e.subSkillId === subSkillId && e.weekNumber === week)), saved] }
-        : prev))
+      .then((saved) => setData((prev) => {
+        if (!prev) return prev;
+        // The save recomputes this skill's month-end snapshot server-side and returns it,
+        // so the Month-end column updates the moment a score lands — no refetch, and no
+        // extra progress.star.view rows in the audit log.
+        const snapshots = saved.snapshot
+          ? [...prev.snapshots.filter((sn) => sn.subSkillId !== subSkillId), saved.snapshot]
+          : prev.snapshots;
+        return {
+          ...prev,
+          entries: [...prev.entries.filter((e) => !(e.subSkillId === subSkillId && e.weekNumber === week)), saved],
+          snapshots,
+        };
+      }))
       .catch(() => { /* leave unchanged on failure */ });
   }
 
@@ -176,9 +187,9 @@ export default function TrackerWidget({ participantId, tracks = ["PartTime"] }: 
             onChange={(e) => setMonth(e.target.value)}
             style={{ border: "0.5px solid var(--border-hover)", borderRadius: "var(--r-md)", padding: "5px 8px", fontSize: 12, color: "var(--fg)", background: "var(--surface)", outline: "none" }}
           />
-          <button type="button" className="ss-btn" onClick={recompute} disabled={computing || loading} title="Recompute suggested month-end levels from the weekly data">
+          <button type="button" className="ss-btn" onClick={recompute} disabled={computing || loading} title="Month-end levels update automatically as scores are saved. Use this to refresh a month whose scores were entered before that was true.">
             <RefreshCw className="ss-btn-icon" style={computing ? { animation: "spin 1s linear infinite" } : undefined} />
-            {computing ? "Computing…" : "Recompute"}
+            {computing ? "Updating…" : "Refresh levels"}
           </button>
         </div>
       </div>
@@ -362,20 +373,38 @@ function FragmentSection({
             })}
             <td style={{ padding: "4px 8px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                {/*
+                  Bound to the CONFIRMED level only, never to the auto-derived one. Levels now
+                  fill in the moment a score is saved, so binding to snap.level would show
+                  "Intermediate" already selected — and a teacher who agrees would pick the
+                  value that is already there, fire no change event, and confirm nothing. The
+                  cohort roll-up counts confirmed levels only, so the tracker would look
+                  complete while the roll-up read zero.
+                */}
                 <select
-                  value={snap && snap.level ? snap.level : ""}
+                  value={snap?.isConfirmed ? snap.level : ""}
                   onChange={(e) => e.target.value && onConfirm(s.id, e.target.value as ProgressLevel)}
                   style={{ border: "0.5px solid var(--border-hover)", borderRadius: "var(--r-sm)", padding: "3px 6px", fontSize: 12, color: "var(--fg)", background: "var(--surface)", outline: "none" }}
+                  aria-label={`${s.name} — confirmed month-end level`}
                 >
-                  <option value="">Set…</option>
+                  <option value="">{snap && snap.scoredWeekCount > 0 ? "Confirm…" : "Set…"}</option>
                   {rowLevels.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
                 </select>
                 {snap?.isConfirmed ? (
                   <span title="Confirmed" style={{ display: "inline-flex", alignItems: "center", color: "var(--success)" }}><Check style={{ width: 13, height: 13 }} /></span>
                 ) : snap && snap.scoredWeekCount > 0 ? (
-                  <span style={{ fontSize: 10, color: "var(--fg-tertiary)" }} title={`Suggested from ${snap.scoredWeekCount} scored week(s)`}>
-                    sugg. {levelLabel(snap.suggestedLevel)}
-                  </span>
+                  // One click to agree with the calculated level — the common case. Picking a
+                  // different level from the dropdown remains the way to disagree.
+                  <button
+                    type="button"
+                    onClick={() => onConfirm(s.id, snap.suggestedLevel)}
+                    title={`Confirm ${levelLabel(snap.suggestedLevel)}, calculated from ${snap.scoredWeekCount} scored week${snap.scoredWeekCount !== 1 ? "s" : ""}`}
+                    aria-label={`Confirm ${levelLabel(snap.suggestedLevel)} for ${s.name}`}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 4, border: "0.5px solid var(--border-hover)", background: "var(--surface)", borderRadius: "var(--r-pill)", padding: "2px 8px", fontSize: 10, color: "var(--fg-secondary)", cursor: "pointer" }}
+                  >
+                    <Check style={{ width: 11, height: 11 }} />
+                    {levelLabel(snap.suggestedLevel)}
+                  </button>
                 ) : null}
               </div>
             </td>

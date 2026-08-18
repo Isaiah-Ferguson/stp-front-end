@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { PenLine, Check, X } from "lucide-react";
-import { useMyPrograms, useParticipants, useObjectiveAreas } from "@/lib/api/hooks";
+import { useMyPrograms, useParticipants, useObjectiveAreas, useStaff } from "@/lib/api/hooks";
 import { progressApi } from "@/lib/api/progress";
+import { rosterApi } from "@/lib/api/roster";
+import { useAuth } from "@/lib/auth/AuthProvider";
 import { Skeleton } from "../components/Skeleton";
 import type {
   ProgramSummaryDto,
@@ -12,7 +14,16 @@ import type {
   WeeklyFocusSkillDto,
   StarMonthDto,
   DataScore,
+  StaffSummaryDto,
+  RosterEntryDto,
 } from "@/lib/types/api";
+
+// The term the roster is keyed by. Assignments are set per quarter, so the filter reads
+// the current one — the same convention the Roster page uses.
+function currentTerm() {
+  const now = new Date();
+  return { year: now.getFullYear(), quarter: Math.floor(now.getMonth() / 3) + 1 };
+}
 
 const WEEKS = [1, 2, 3, 4, 5];
 const SCORES: { value: DataScore; short: string }[] = [
@@ -33,6 +44,26 @@ export default function WeeklyDataPage() {
   const programs: ProgramSummaryDto[] = useMyPrograms().data ?? [];
   const allParticipants: ParticipantSummaryDto[] = useParticipants().data ?? [];
   const areas: ObjectiveAreaDto[] = useObjectiveAreas().data ?? [];
+  const staff: StaffSummaryDto[] = useStaff().data ?? [];
+  const { user } = useAuth();
+
+  // Staff filter (#R5). "" means everyone; otherwise a staffMemberId. A teacher lands on
+  // their own assigned Stars — the app already knows which staff member is signed in — with
+  // the option to switch to another staff member or view all.
+  const [staffFilterRaw, setStaffFilterRaw] = useState<string | null>(null);
+  const [assignments, setAssignments] = useState<RosterEntryDto[] | null>(null); // null = not loaded yet
+  const term = useMemo(currentTerm, []);
+
+  // Default to the signed-in staff member ONLY once the roster has loaded and actually has
+  // stars assigned to them. Applying it eagerly emptied the grid for every staff-linked user
+  // in any term nobody had filled in yet — including the first week of every new quarter —
+  // with no way back, because the reset chip only rendered when assignments existed.
+  const defaultStaffFilter =
+    assignments && user?.staffMemberId &&
+    assignments.some((a) => a.assignedStaffId === user.staffMemberId)
+      ? user.staffMemberId
+      : "";
+  const staffFilter = staffFilterRaw ?? defaultStaffFilter;
 
   // Defaults to the user's first program once the list arrives; explicit choice wins.
   const [programIdRaw, setProgramIdRaw] = useState<string>("");
@@ -50,10 +81,36 @@ export default function WeeklyDataPage() {
   const [savingFocus, setSavingFocus] = useState(false);
 
   // Bootstrap: programs, participants, taxonomy.
+  // Star ids assigned to the chosen staff member this term. Empty filter → no restriction.
+  const staffStarIds = useMemo(() => {
+    if (!staffFilter || !assignments) return null;
+    return new Set(assignments.filter((a) => a.assignedStaffId === staffFilter).map((a) => a.participantId));
+  }, [assignments, staffFilter]);
+
   const participants = useMemo(
-    () => allParticipants.filter((p) => p.programId === programId || p.secondaryProgramId === programId).sort((a, b) => a.fullName.localeCompare(b.fullName)),
-    [allParticipants, programId]
+    () => allParticipants
+      .filter((p) => p.programId === programId || p.secondaryProgramId === programId)
+      .filter((p) => staffStarIds === null || staffStarIds.has(p.id))
+      .sort((a, b) => a.fullName.localeCompare(b.fullName)),
+    [allParticipants, programId, staffStarIds]
   );
+
+  // Staff who actually have an assignment this term, for the picker — no point listing
+  // everyone on payroll when only a handful are assigned Stars.
+  const assignedStaff = useMemo(() => {
+    const ids = new Set((assignments ?? []).map((a) => a.assignedStaffId).filter(Boolean) as string[]);
+    return staff.filter((m) => ids.has(m.id) && !m.isFormer).sort((a, b) => a.fullName.localeCompare(b.fullName));
+  }, [assignments, staff]);
+
+  // The term's roster: which staff member each Star is assigned to. Loaded once; a
+  // management user sees the whole roster, a teacher sees only their own (the API scopes it).
+  useEffect(() => {
+    rosterApi.get(term.year, term.quarter)
+      .then(setAssignments)
+      // An empty array is a real answer ("nobody is assigned yet"); a failure is not. Both
+      // used to collapse to [], which silently turned a 500 into an empty roster.
+      .catch(() => setAssignments([]));
+  }, [term]);
 
   // Load focus skills + each Star's month data when program/month changes.
   useEffect(() => {
@@ -77,6 +134,22 @@ export default function WeeklyDataPage() {
   }, [programId, month, allParticipants]);
 
   const weekFocus = useMemo(() => focus.filter((f) => f.weekNumber === week), [focus, week]);
+
+  // Coverage for the week in view (#R4, the cheap half). Answers "who is still missing?"
+  // where the work actually happens, rather than as another dashboard line nobody opens.
+  // A Star counts as done when every focus skill has a score — N/A counts, since marking a
+  // skill not-applicable is a deliberate answer, not a gap.
+  const coverage = useMemo(() => {
+    if (weekFocus.length === 0 || participants.length === 0) return null;
+    let done = 0;
+    const missing: string[] = [];
+    for (const p of participants) {
+      const scored = weekFocus.every((f) => scores.get(`${p.id}:${f.subSkillId}:${week}`));
+      if (scored) done++;
+      else missing.push(p.fullName);
+    }
+    return { done, total: participants.length, missing };
+  }, [participants, weekFocus, scores, week]);
 
   function recordScore(participantId: string, subSkillId: string, score: DataScore) {
     setScores((prev) => new Map(prev).set(`${participantId}:${subSkillId}:${week}`, score));
@@ -139,6 +212,19 @@ export default function WeeklyDataPage() {
               <button key={w} type="button" className={`ss-chip${week === w ? " is-active" : ""}`} style={{ cursor: "pointer" }} onClick={() => setWeek(w)}>W{w}</button>
             ))}
           </div>
+          {/* Rendered when there is someone to pick OR a filter is active — the "All stars"
+              reset must never be unreachable while the grid is filtered. */}
+          {(assignedStaff.length > 0 || staffFilter !== "") && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+              <span className="ss-label" style={{ color: "var(--fg-tertiary)", marginRight: 2 }}>Staff</span>
+              <button type="button" className={`ss-chip${staffFilter === "" ? " is-active" : ""}`} style={{ cursor: "pointer" }} onClick={() => setStaffFilterRaw("")}>All stars</button>
+              {assignedStaff.map((m) => (
+                <button key={m.id} type="button" className={`ss-chip${staffFilter === m.id ? " is-active" : ""}`} style={{ cursor: "pointer" }} onClick={() => setStaffFilterRaw(m.id)}>
+                  {m.id === user?.staffMemberId ? "My stars" : m.fullName}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Focus skills */}
@@ -193,6 +279,29 @@ export default function WeeklyDataPage() {
           </div>
         </div>
 
+        {/* Week coverage */}
+        {!loading && coverage && (
+          <div
+            style={{
+              display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+              marginBottom: "var(--space-3)", padding: "8px 12px",
+              border: "0.5px solid var(--border)", borderRadius: "var(--r-md)",
+              background: coverage.done === coverage.total ? "var(--success-fill, #e9f1ec)" : "var(--surface)",
+              fontSize: 13,
+            }}
+          >
+            <span style={{ color: coverage.done === coverage.total ? "var(--success)" : "var(--fg)" }}>
+              <strong>Week {week}:</strong> {coverage.done} of {coverage.total} star{coverage.total !== 1 ? "s" : ""} scored
+            </span>
+            {coverage.missing.length > 0 && (
+              <span style={{ color: "var(--fg-tertiary)" }}>
+                still to do: {coverage.missing.slice(0, 4).join(", ")}
+                {coverage.missing.length > 4 ? ` +${coverage.missing.length - 4} more` : ""}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Entry grid */}
         {loading ? (
           <div style={{ border: "0.5px solid var(--border)", borderRadius: "var(--r-lg)", background: "var(--surface)", overflow: "hidden" }}>
@@ -209,7 +318,11 @@ export default function WeeklyDataPage() {
             ))}
           </div>
         ) : participants.length === 0 ? (
-          <div style={{ padding: "24px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>No stars in this program.</div>
+          <div style={{ padding: "24px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>
+            {staffFilter
+              ? "No stars assigned to this staff member for the current term. Set assignments on the Roster page, or choose \u201cAll stars\u201d."
+              : "No stars in this program."}
+          </div>
         ) : weekFocus.length === 0 ? (
           <div style={{ padding: "24px 0", textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>Set this week&apos;s focus skills above to start entering data.</div>
         ) : (

@@ -264,6 +264,8 @@ export interface WeeklyDataEntryDto {
   weekDate: string;
   score: DataScore;
   recordedByStaffMemberId: Guid | null;
+  /** The month-end snapshot for this skill, refreshed by the same save. */
+  snapshot: MonthlyProgressSnapshotDto | null;
 }
 
 export interface MonthlyProgressSnapshotDto {
@@ -332,6 +334,14 @@ export interface StarMonthDto {
   snapshots: MonthlyProgressSnapshotDto[];
   noteSelections: WeeklyNoteSelectionDto[];
   monthlySummary: MonthlySummaryDto | null;
+}
+
+/** One Star behind a roll-up count, fetched on demand rather than inlined into every row. */
+export interface CohortStarDto {
+  participantId: Guid;
+  fullName: string;
+  initials: string;
+  programName: string;
 }
 
 export interface CohortRollUpRowDto {
