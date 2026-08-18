@@ -129,6 +129,85 @@ export interface MfaStatusDto {
   recoveryCodesRemaining: number;
 }
 
+// ── Productions & events (attendance tracked separately from classes) ─────────
+
+export type EventCategory = "Production" | "Event";
+
+/**
+ * Serialized from the SessionStatus enum, so capitalized — unlike the class attendance DTOs,
+ * which hand-map to lowercase strings with an extra "in-progress" state the enum has no
+ * concept of.
+ */
+export type EventStatus = "Open" | "Submitted";
+
+export interface EventSiteDto {
+  id: Guid;
+  name: string;
+}
+
+export interface EventSessionSummaryDto {
+  id: Guid;
+  title: string;
+  category: EventCategory;
+  /** yyyy-MM-dd */
+  date: string;
+  venue: string | null;
+  timeRange: string | null;
+  hoursLogged: number | null;
+  status: EventStatus;
+  sites: EventSiteDto[];
+  /** Counts describe what the caller may see, not necessarily the whole register. */
+  totalCount: number;
+  markedCount: number;
+  presentCount: number;
+}
+
+export interface EventRosterEntryDto {
+  recordId: Guid;
+  participantId: Guid;
+  participantName: string;
+  participantInitials: string;
+  programName: string;
+  programSlug: string;
+  siteId: Guid | null;
+  siteName: string | null;
+  status: AttendanceStatus;
+  canMark: boolean;
+}
+
+export interface EventRosterDto {
+  event: EventSessionSummaryDto;
+  entries: EventRosterEntryDto[];
+}
+
+export interface EventCandidateDto {
+  participantId: Guid;
+  fullName: string;
+  initials: string;
+  programName: string;
+  programSlug: string;
+  alreadyAdded: boolean;
+}
+
+export interface CreateEventSessionDto {
+  title: string;
+  category: EventCategory;
+  date: string;
+  venue?: string | null;
+  timeRange?: string | null;
+  siteIds: Guid[];
+}
+
+export interface AddEventParticipantsDto {
+  participantIds: Guid[];
+  siteId?: Guid | null;
+}
+
+export interface UpdateEventRecordDto {
+  status: AttendanceStatus;
+  siteId?: Guid | null;
+}
+
 // ── Programs ──────────────────────────────────────────────────────────────────
 
 export interface ProgramSummaryDto {

@@ -27,9 +27,14 @@ import {
   prettyDate,
 } from "./_components";
 import EmptyState from "../components/EmptyState";
+import EventsPanel from "./_events";
 
 export default function AttendancePage() {
   const { isAdmin } = useAuth();
+
+  // Classes and events are two different registers, not two views of one — event attendance
+  // is tracked separately and never counts toward class attendance %.
+  const [tab, setTab] = useState<"classes" | "events">("classes");
 
   const [date, setDate] = useState<string>(todayStr());
   const [cards, setCards] = useState<ScheduledSessionDto[]>([]);
@@ -240,6 +245,22 @@ export default function AttendancePage() {
         </div>
 
         <div className="adm-content">
+          <div role="tablist" aria-label="Attendance type"
+            style={{ display: "flex", gap: 6, marginBottom: "var(--space-4)" }}>
+            {([["classes", "Classes"], ["events", "Productions & Events"]] as const).map(([key, label]) => (
+              <button key={key} type="button" role="tab" aria-selected={tab === key}
+                className={`ss-chip${tab === key ? " is-active" : ""}`}
+                style={{ cursor: "pointer" }}
+                onClick={() => setTab(key)}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {tab === "events" ? (
+            <EventsPanel canManage={isAdmin} />
+          ) : (
+          <>
           {error && (
             <div
               style={{
@@ -338,6 +359,8 @@ export default function AttendancePage() {
                 </>
               )}
             </>
+          )}
+          </>
           )}
         </div>
       </div>
