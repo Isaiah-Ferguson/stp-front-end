@@ -18,6 +18,26 @@ import type {
   RosterEntryDto,
 } from "@/lib/types/api";
 
+const DAY_ORDER = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
+
+/**
+ * When weekly data is due for a programme: its LAST meeting day of the week.
+ *
+ * The client stated the rule as "Part-time each Wednesday (or last day of class for the
+ * week), Full-time Fridays" — and their programmes meet Mon–Wed and Mon–Fri respectively, so
+ * deriving it from the schedule reproduces both answers exactly and stays correct if the
+ * timetable ever changes. Hardcoding the two weekdays would silently go wrong the first time
+ * a class moves.
+ */
+function dueDayFor(meetingDays: string | undefined): (typeof DAY_ORDER)[number] | null {
+  if (!meetingDays || meetingDays === "None") return null;
+  const days = meetingDays.split(",").map((d) => d.trim());
+  for (let i = DAY_ORDER.length - 1; i >= 0; i--) {
+    if (days.includes(DAY_ORDER[i])) return DAY_ORDER[i];
+  }
+  return null;
+}
+
 // The term the roster is keyed by. Assignments are set per quarter, so the filter reads
 // the current one — the same convention the Roster page uses.
 function currentTerm() {
@@ -148,8 +168,16 @@ export default function WeeklyDataPage() {
       if (scored) done++;
       else missing.push(p.fullName);
     }
-    return { done, total: participants.length, missing };
-  }, [participants, weekFocus, scores, week]);
+
+    // Overdue only for a week that has actually finished — flagging the current week as late
+    // on its own due day, before the class has happened, would be nagging rather than useful.
+    const due = dueDayFor(programs.find((pr) => pr.id === programId)?.meetingDays);
+    const today = new Date();
+    const dueIndex = due ? DAY_ORDER.indexOf(due) : -1;
+    const pastDue = dueIndex >= 0 && today.getDay() > dueIndex;
+
+    return { done, total: participants.length, missing, due, pastDue };
+  }, [participants, weekFocus, scores, week, programs, programId]);
 
   function recordScore(participantId: string, subSkillId: string, score: DataScore) {
     setScores((prev) => new Map(prev).set(`${participantId}:${subSkillId}:${week}`, score));
@@ -286,13 +314,20 @@ export default function WeeklyDataPage() {
               display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
               marginBottom: "var(--space-3)", padding: "8px 12px",
               border: "0.5px solid var(--border)", borderRadius: "var(--r-md)",
-              background: coverage.done === coverage.total ? "var(--success-fill, #e9f1ec)" : "var(--surface)",
+              background: coverage.done === coverage.total
+                ? "var(--success-fill, #e9f1ec)"
+                : coverage.pastDue ? "var(--warning-fill, #f7efe2)" : "var(--surface)",
               fontSize: 13,
             }}
           >
-            <span style={{ color: coverage.done === coverage.total ? "var(--success)" : "var(--fg)" }}>
+            <span style={{ color: coverage.done === coverage.total ? "var(--success-text, var(--success))" : "var(--fg)" }}>
               <strong>Week {week}:</strong> {coverage.done} of {coverage.total} star{coverage.total !== 1 ? "s" : ""} scored
             </span>
+            {coverage.due && coverage.done < coverage.total && (
+              <span style={{ color: coverage.pastDue ? "var(--warning-text, var(--warning))" : "var(--fg-tertiary)" }}>
+                {coverage.pastDue ? `· was due ${coverage.due}` : `· due ${coverage.due}`}
+              </span>
+            )}
             {coverage.missing.length > 0 && (
               <span style={{ color: "var(--fg-tertiary)" }}>
                 still to do: {coverage.missing.slice(0, 4).join(", ")}

@@ -295,6 +295,29 @@ export default function TrackerWidget({ participantId, tracks = ["PartTime"] }: 
                         onClick={() => setSummaryForm((f) => ({ ...f, primaryLevel: l.value }))}>{l.label}</button>
                     ))}
                   </div>
+                  {/*
+                    The calculated overall level, offered rather than applied. Same
+                    suggest-then-confirm split the per-skill levels use: the average is the
+                    machine's answer, the chip above is what a named person stands behind.
+                  */}
+                  {data && data.suggestedPrimaryScoredCount > 0 && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontSize: 12, color: "var(--fg-tertiary)" }}>
+                      <span>
+                        Calculated across all {data.suggestedPrimaryScoredCount} score
+                        {data.suggestedPrimaryScoredCount !== 1 ? "s" : ""} this month:{" "}
+                        <strong style={{ color: "var(--fg-secondary)" }}>{levelLabel(data.suggestedPrimaryLevel)}</strong>
+                      </span>
+                      {summaryForm.primaryLevel !== data.suggestedPrimaryLevel && (
+                        <button
+                          type="button"
+                          onClick={() => setSummaryForm((f) => ({ ...f, primaryLevel: data.suggestedPrimaryLevel }))}
+                          style={{ border: "0.5px solid var(--border-hover)", background: "var(--surface)", borderRadius: "var(--r-pill)", padding: "2px 10px", fontSize: 11, color: "var(--fg-secondary)", cursor: "pointer" }}
+                        >
+                          Use this
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <div className="ss-label" style={{ marginBottom: 6 }}>Progress this month</div>

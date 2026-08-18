@@ -334,6 +334,10 @@ export interface StarMonthDto {
   snapshots: MonthlyProgressSnapshotDto[];
   noteSelections: WeeklyNoteSelectionDto[];
   monthlySummary: MonthlySummaryDto | null;
+  /** Overall level for the month — every weekly score pooled across skills and averaged once. */
+  suggestedPrimaryLevel: ProgressLevel;
+  /** How many weekly scores fed that suggestion; 0 means there is nothing to suggest. */
+  suggestedPrimaryScoredCount: number;
 }
 
 /** One Star behind a roll-up count, fetched on demand rather than inlined into every row. */
